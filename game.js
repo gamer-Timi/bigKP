@@ -27,7 +27,7 @@
   const REST_SPEED = 140;    // 线上方且速度低于它才算“卡住”（被弹飞路过的不算）
   const REST_SPEED2 = REST_SPEED * REST_SPEED;
 
-  const MAX_TIER  = 11;      // 最大那只（REX）的索引（插入一级后变成 11）
+  const MAX_TIER  = 12;      // 最大那只（11.png）的索引
   const MAX_BONUS = 114514;  // 两只最大级相撞的奖励分（改造版：原 500 → 114514）
   const MAX_MERGE_GIVES_REVIVE = true;  // 两只REX一起炸掉时，额外送一枚复活币
   const FREEZE_MS = 130;     // 清场时的定格，让这一下有重量
@@ -49,7 +49,8 @@
   const ASSET_FILL = 0.92;   // 贴图里主体占画布长边的比例，与生成脚本保持一致
 
   /* 改造版（相对原版）：1~5 级 90%，6 级 80%，7 级 83.6%，8 级 83.5%，
-     9 级 83%，10 级 87.5%，11 级 94%，12 级 99.9% */
+     9 级 83%，9.5 级 = 10 级 87.5% 的大小（94.5），10 级 87.5%，
+     10.5 级 94%，11 级 99.9% */
   const FRUITS = [
     { name: '葡萄',   r: 15.3, c1: '#c084f5', c2: '#7a3fb0', line: 'rgba(74,26,120,.35)',
       file: 'assets/fruits/01-grape.webp',     pc1: '#e9c466', pc2: '#b8903a' },
@@ -69,16 +70,18 @@
       file: 'assets/fruits/08-pineapple.webp', pc1: '#ffd37b', pc2: '#d1a252' },
     { name: '椰子',   r: 78.02, c1: '#f0e2c6', c2: '#9b7b4f', line: 'rgba(90,64,32,.35)',
       file: 'assets/fruits/09-coconut.webp',   pc1: '#ffd771', pc2: '#d3a94e' },
+    { name: '9.5',    r: 94.5, c1: '#cfe0b8', c2: '#5d8c3c', line: 'rgba(50,100,40,.34)',
+      file: 'assets/fruits/10-ninehalf.webp',  pc1: '#d8c07a', pc2: '#a88a4a' },
     { name: '半奶蛙', r: 94.5, c1: '#ff9d78', c2: '#c23a2c', line: 'rgba(120,24,16,.32)',
-      file: 'assets/fruits/10-halfmelon.webp', pc1: '#ccab68', pc2: '#9c8047' },
+      file: 'assets/fruits/11-halfmelon.webp', pc1: '#ccab68', pc2: '#9c8047' },
     { name: 'REX·中', r: 101.52, c1: '#b8e986', c2: '#2a7a3a', line: 'rgba(20,90,40,.38)',
-      file: 'assets/fruits/11-rex-mid.webp', pc1: '#cfe07a', pc2: '#8fae3c' },
+      file: 'assets/fruits/12-rex-mid.webp', pc1: '#cfe07a', pc2: '#8fae3c' },
     { name: 'REX',   r: 123.876, c1: '#7ce878', c2: '#1c8a33', line: 'rgba(12,70,24,.4)',
-      file: 'assets/fruits/12-watermelon.webp', pc1: '#eece9b', pc2: '#c0a271' }
+      file: 'assets/fruits/13-watermelon.webp', pc1: '#eece9b', pc2: '#c0a271' }
   ];
 
   /* 合成出 tier 的得分（三角数） */
-  const MERGE_SCORE = [0, 1, 3, 6, 10, 15, 21, 28, 36, 45, 55, 66];
+  const MERGE_SCORE = [0, 1, 3, 6, 10, 15, 21, 28, 36, 45, 55, 66, 78];
 
   /* 新水果的掉落权重（越小越常见）
      改造版：随「本局已合成出的最高等级」动态切换。
@@ -86,17 +89,18 @@
      · 第 7 级（tier 6）合出来之前：1~5 级 0.28 / 0.24 / 0.20 / 0.16 / 0.12
      · 第 7 级合出来后：1~6 级 0.24 / 0.24 / 0.20 / 0.16 / 0.12 / 0.04
      · 第 8 级合出来后：1~7 级 0.24 / 0.24 / 0.20 / 0.16 / 0.12 / 0.03 / 0.01
-     · 第 9 级合出来后：1~8 级 0.22 / 0.24 / 0.20 / 0.16 / 0.12 / 0.03 / 0.02 / 0.01
-     · 第 10 级合出来后：1~8 级 0.22 / 0.21 / 0.20 / 0.16 / 0.12 / 0.04 / 0.03 / 0.02
-     · 第 11 级合出来后：1~8 级 0.20 / 0.20 / 0.20 / 0.12 / 0.12 / 0.10 / 0.04 / 0.02
+     · 第 9 级合出来后：1~9 级 0.22 / 0.24 / 0.20 / 0.16 / 0.12 / 0.03 / 0.02 / 0.005 / 0.005
+       （8.png 的 0.01 平分给 8.png、9.png）
+     · 第 10 级合出来后：1~9 级 0.22 / 0.21 / 0.20 / 0.16 / 0.12 / 0.04 / 0.03 / 0.01 / 0.01
+     · 第 10.5 级合出来后：1~9 级 0.20 / 0.20 / 0.20 / 0.12 / 0.12 / 0.10 / 0.04 / 0.01 / 0.01
      · 之后维持这张表 */
   const SPAWN_TABLES = [
     { tiers: [0, 1, 2, 3, 4],       weights: [0.28, 0.24, 0.20, 0.16, 0.12] },
     { tiers: [0, 1, 2, 3, 4, 5],    weights: [0.24, 0.24, 0.20, 0.16, 0.12, 0.04] },
     { tiers: [0, 1, 2, 3, 4, 5, 6], weights: [0.24, 0.24, 0.20, 0.16, 0.12, 0.03, 0.01] },
-    { tiers: [0, 1, 2, 3, 4, 5, 6, 7], weights: [0.22, 0.24, 0.20, 0.16, 0.12, 0.03, 0.02, 0.01] },
-    { tiers: [0, 1, 2, 3, 4, 5, 6, 7], weights: [0.22, 0.21, 0.20, 0.16, 0.12, 0.04, 0.03, 0.02] },
-    { tiers: [0, 1, 2, 3, 4, 5, 6, 7], weights: [0.20, 0.20, 0.20, 0.12, 0.12, 0.10, 0.04, 0.02] }
+    { tiers: [0, 1, 2, 3, 4, 5, 6, 7, 8], weights: [0.22, 0.24, 0.20, 0.16, 0.12, 0.03, 0.02, 0.005, 0.005] },
+    { tiers: [0, 1, 2, 3, 4, 5, 6, 7, 8], weights: [0.22, 0.21, 0.20, 0.16, 0.12, 0.04, 0.03, 0.01, 0.01] },
+    { tiers: [0, 1, 2, 3, 4, 5, 6, 7, 8], weights: [0.20, 0.20, 0.20, 0.12, 0.12, 0.10, 0.04, 0.01, 0.01] }
   ];
 
   const BEST_KEY = 'danaiwa.best.v1';
@@ -144,12 +148,12 @@
      所以默认避开；想恢复成完全随机就把它改成 false */
   const AVOID_REPEAT = true;
 
-  /* 当前该用第几张掉落表（0~4），取决于本局已合成出的最高 tier */
+  /* 当前该用第几张掉落表（0~5），取决于本局已合成出的最高 tier */
   function spawnTableIndex() {
     const m = state.maxSynthesized;
-    if (m >= 10) return 5;   // 第 11 级（tier 10）及以后
-    if (m >= 9) return 4;    // 第 10 级（tier 9）
-    if (m >= 8) return 3;    // 第 9 级（tier 8）
+    if (m >= 11) return 5;   // 第 10.5 级（tier 11）
+    if (m >= 10) return 4;   // 第 10 级（tier 10）
+    if (m >= 8) return 3;    // 第 9 级（tier 8）；9.5 也沿用这张
     if (m >= 7) return 2;    // 第 8 级（tier 7）
     if (m >= 6) return 1;    // 第 7 级（tier 6）
     return 0;                // 还没合出第 7 级
@@ -554,6 +558,17 @@
     b.sqA = Math.atan2(ny, nx);
   }
 
+  /* 相同等级相撞 → 下一级；7.png 是分支：66% → 8.png，34% → 9.png */
+  function mergeInto(tier) {
+    if (tier === 6) return Math.random() < 0.66 ? 7 : 8;
+    if (tier === 7) return 9;    // 8 + 8 → 9.5
+    if (tier === 8) return 10;   // 9 + 9 → 10
+    if (tier === 9) return 11;   // 9.5 + 9.5 → 10.5
+    if (tier === 10) return 11;  // 10 + 10 → 10.5
+    if (tier === 11) return 12;  // 10.5 + 10.5 → 11
+    return tier + 1;
+  }
+
   function processMerges(merges) {
     for (let k = 0; k < merges.length; k++) {
       const a = merges[k][0];
@@ -593,7 +608,7 @@
           }
         }
       } else {
-        const nt = tier + 1;
+        const nt = mergeInto(tier);
         const prevTable = spawnTableIndex();
         if (nt > state.maxSynthesized) state.maxSynthesized = nt;
         const nb = makeBall(mx, my, nt, (a.vx + b.vx) * 0.5, (a.vy + b.vy) * 0.5 - 60);
@@ -1231,24 +1246,58 @@
     chainCtx.setTransform(1, 0, 0, 1, 0, 0);
     chainCtx.clearRect(0, 0, cw, ch);
 
-    const slot = cw / FRUITS.length;
-    const r = slot * 0.36;
-    const cy = ch * 0.5;
+    /* 主线：1~8 → 9.5 → 10.5 → 11
+       支线：7 → 9 → 10 → 10.5（汇合）；不标概率 */
+    const top = [0, 1, 2, 3, 4, 5, 6, 7, 9, 11, 12];
+    const slot = cw / top.length;
+    const yTop = ch * 0.30;
+    const yBot = ch * 0.74;
+    const rTop = slot * 0.32;
+    const rBot = slot * 0.28;
+    const xAt = (i) => slot * (i + 0.5);
 
-    for (let i = 0; i < FRUITS.length; i++) {
-      const x = slot * (i + 0.5);
-      drawFruit(chainCtx, x, cy, r, i, 0, 1);
-      if (i < FRUITS.length - 1) {
+    function line(x1, y1, x2, y2) {
+      chainCtx.save();
+      chainCtx.globalAlpha = 0.45;
+      chainCtx.strokeStyle = '#b08a68';
+      chainCtx.lineWidth = 2;
+      chainCtx.beginPath();
+      chainCtx.moveTo(x1, y1);
+      chainCtx.lineTo(x2, y2);
+      chainCtx.stroke();
+      chainCtx.restore();
+    }
+
+    /* 7 → 9 的竖向分支；10 → 10.5 的汇合线 */
+    line(xAt(6), yTop + rTop, xAt(6), yBot - rBot);
+    line(xAt(7), yBot - rBot, xAt(9), yTop + rTop);
+
+    for (let i = 0; i < top.length; i++) {
+      const x = xAt(i);
+      drawFruit(chainCtx, x, yTop, rTop, top[i], 0, 1);
+      if (i < top.length - 1) {
         chainCtx.save();
         chainCtx.globalAlpha = 0.45;
         chainCtx.fillStyle = '#b08a68';
-        chainCtx.font = '600 ' + Math.round(ch * 0.2) + 'px system-ui, sans-serif';
+        chainCtx.font = '600 ' + Math.round(ch * 0.16) + 'px system-ui, sans-serif';
         chainCtx.textAlign = 'center';
         chainCtx.textBaseline = 'middle';
-        chainCtx.fillText('›', x + slot * 0.5, cy);
+        chainCtx.fillText('›', x + slot / 2, yTop);
         chainCtx.restore();
       }
     }
+
+    /* 支线：9 → 10 */
+    drawFruit(chainCtx, xAt(6), yBot, rBot, 8, 0, 1);
+    drawFruit(chainCtx, xAt(7), yBot, rBot, 10, 0, 1);
+    chainCtx.save();
+    chainCtx.globalAlpha = 0.45;
+    chainCtx.fillStyle = '#b08a68';
+    chainCtx.font = '600 ' + Math.round(ch * 0.16) + 'px system-ui, sans-serif';
+    chainCtx.textAlign = 'center';
+    chainCtx.textBaseline = 'middle';
+    chainCtx.fillText('›', (xAt(6) + xAt(7)) / 2, yBot);
+    chainCtx.restore();
   }
 
   /* ---------------------------------------------------------
@@ -1545,7 +1594,7 @@
   /* 调试句柄（控制台可用）：__DNW__.state / .reset() / .drop() / .FRUITS / .render() */
   window.__DNW__ = { state, reset, revive, settle, gameOver, tryDrop, stepPhysics, update, FRUITS,
                      render, resizeCanvas, shapeOf, makeBall, paintRevives, addScore,
-                     spawnTableIndex, rollSpawnTier, SPAWN_TABLES, MAX_BONUS, REVIVE_STEP,
+                     spawnTableIndex, rollSpawnTier, mergeInto, SPAWN_TABLES, MAX_BONUS, REVIVE_STEP,
                      setEraseMode, eraseAt,
                      blurReady: () => !!blurImg };
 })();
