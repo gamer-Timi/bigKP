@@ -27,6 +27,7 @@
   var PREFIX = 'kp_';   // 改造版：独立前缀，不跟原版的 dnw_ 混榜
 
   const NAME_KEY = 'danaiwa.name';
+  const REX_KEY = 'danaiwa.rex.v1';   // 是否合出过两个最高级（666 徽章）
   const DEFAULT_NAME = '默认用户';   // 没填昵称就用这个
   const MUTE_MIN_GAP = 3000;        // 两次提交至少间隔 3 秒
   const MAX_SCORE = 99999999;       // 明显离谱的成绩直接不收
@@ -77,7 +78,7 @@
 
   function addScore(name, score) {
     const tag = PREFIX + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
-    const value = JSON.stringify({ n: name, s: score, t: Date.now() });
+    const value = JSON.stringify({ n: name, s: score, t: Date.now(), r: hasRex() ? 1 : 0 });
     return post({ action: 'update', tag: tag, value: value });
   }
 
@@ -133,6 +134,7 @@
           tag: tag,
           name: String((rec && rec.n) || '匿名玩家').slice(0, 16),
           score: s,
+          rex: !!(rec && rec.r),
           t: stampOf(tag, rec)
         });
       }
@@ -269,10 +271,27 @@
     if (submitBtn) submitBtn.hidden = !show;
   }
 
+  /* 是否已经合出过两个最高级（666 徽章） */
+  function hasRex() {
+    try { return localStorage.getItem(REX_KEY) === '1'; } catch (e) { return false; }
+  }
+
+  /* 名字后面的 666 小图标 */
+  function makeBadge() {
+    const img = document.createElement('img');
+    img.src = 'assets/666-badge.png';
+    img.className = 'rex-badge';
+    img.alt = '666';
+    return img;
+  }
+
   /* 昵称在界面上出现的所有地方一起刷新 */
   function paintName() {
     const n = myName();
-    if (nameLabel) nameLabel.textContent = n;
+    if (nameLabel) {
+      nameLabel.textContent = n;
+      if (hasRex()) nameLabel.appendChild(makeBadge());
+    }
     if (nickInput && document.activeElement !== nickInput) nickInput.value = loadName();
   }
 
@@ -316,6 +335,7 @@
 
       line.appendChild(rank);
       line.appendChild(name);
+      if (row.rex) line.appendChild(makeBadge());
       line.appendChild(score);
 
       // 高亮自己刚提交的那一条（同分且还没标记过）
@@ -491,6 +511,7 @@
     onGameOver: onGameOver,
     fetchTop: fetchTop,
     submitScore: addScore,
+    refreshBadge: paintName,
     myName: myName,
     setName: function (n) { commitName(n); },
     hasName: function () { return !!loadName(); }

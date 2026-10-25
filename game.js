@@ -48,9 +48,8 @@
      pc1/pc2: 粒子/汁水的颜色（取自贴图主体平均色） */
   const ASSET_FILL = 0.92;   // 贴图里主体占画布长边的比例，与生成脚本保持一致
 
-  /* 改造版：1~5 级 = 原项目 90%，第 6 级 = 80%，
-     7~12 级 = 上一版的 95%（7~9 级 88%×0.95，10 级 95%×0.95，
-     11 级 100%×0.95，12 级 105%×0.95） */
+  /* 改造版（相对原版）：1~5 级 90%，6 级 80%，7 级 83.6%，
+     8~9 级 83.5%，10 级 89%，11 级 94%，12 级 99.9% */
   const FRUITS = [
     { name: '葡萄',   r: 15.3, c1: '#c084f5', c2: '#7a3fb0', line: 'rgba(74,26,120,.35)',
       file: 'assets/fruits/01-grape.webp',     pc1: '#e9c466', pc2: '#b8903a' },
@@ -66,15 +65,15 @@
       file: 'assets/fruits/06-tomato.webp',    pc1: '#fbd75a', pc2: '#cba63c' },
     { name: '桃子',   r: 57.684, c1: '#ffd0d0', c2: '#ea7f93', line: 'rgba(160,60,80,.3)',
       file: 'assets/fruits/07-peach.webp',     pc1: '#f7c45a', pc2: '#c99a3e' },
-    { name: '菠萝',   r: 67.716, c1: '#ffe07a', c2: '#c88a12', line: 'rgba(130,80,0,.32)',
+    { name: '菠萝',   r: 67.635, c1: '#ffe07a', c2: '#c88a12', line: 'rgba(130,80,0,.32)',
       file: 'assets/fruits/08-pineapple.webp', pc1: '#ffd37b', pc2: '#d1a252' },
-    { name: '椰子',   r: 78.584, c1: '#f0e2c6', c2: '#9b7b4f', line: 'rgba(90,64,32,.35)',
+    { name: '椰子',   r: 78.49, c1: '#f0e2c6', c2: '#9b7b4f', line: 'rgba(90,64,32,.35)',
       file: 'assets/fruits/09-coconut.webp',   pc1: '#ffd771', pc2: '#d3a94e' },
-    { name: '半奶蛙', r: 97.47, c1: '#ff9d78', c2: '#c23a2c', line: 'rgba(120,24,16,.32)',
+    { name: '半奶蛙', r: 96.12, c1: '#ff9d78', c2: '#c23a2c', line: 'rgba(120,24,16,.32)',
       file: 'assets/fruits/10-halfmelon.webp', pc1: '#ccab68', pc2: '#9c8047' },
-    { name: 'REX·中', r: 102.6, c1: '#b8e986', c2: '#2a7a3a', line: 'rgba(20,90,40,.38)',
+    { name: 'REX·中', r: 101.52, c1: '#b8e986', c2: '#2a7a3a', line: 'rgba(20,90,40,.38)',
       file: 'assets/fruits/11-rex-mid.webp', pc1: '#cfe07a', pc2: '#8fae3c' },
-    { name: 'REX',   r: 123.69, c1: '#7ce878', c2: '#1c8a33', line: 'rgba(12,70,24,.4)',
+    { name: 'REX',   r: 123.876, c1: '#7ce878', c2: '#1c8a33', line: 'rgba(12,70,24,.4)',
       file: 'assets/fruits/12-watermelon.webp', pc1: '#eece9b', pc2: '#c0a271' }
   ];
 
@@ -102,6 +101,7 @@
 
   const BEST_KEY = 'danaiwa.best.v1';
   const MUTE_KEY = 'danaiwa.mute.v1';
+  const REX_KEY  = 'danaiwa.rex.v1';   // 是否已经合出过两个最高级（用于 666 徽章）
 
   /* ---------------------------------------------------------
    *  DOM
@@ -267,6 +267,7 @@
     revives: 0,        // 本局还剩几枚复活币（重开清零）
     reviveGiven: 0,    // 本局已经发放过几次（用来判断跨过新的 1000 分）
     maxSynthesized: 0, // 本局已合成出的最高 tier（决定掉落表，0 起）
+    rexFx: null,       // 第一次炸掉两个最高级时的 666 特效
     freeze: 0          // 命中定格剩余秒数
   };
 
@@ -576,6 +577,14 @@
           state.revives++;
           paintRevives(true);
         }
+        /* 第一次把两个最高级撞在一起：播放 666 特效，并给这个存档打上永久标记 */
+        if (!localStorage.getItem(REX_KEY)) {
+          localStorage.setItem(REX_KEY, '1');
+          state.rexFx = { x: mx, y: my, t: 0, life: 1.2 };
+          if (window.DanaiwaBoard && window.DanaiwaBoard.refreshBadge) {
+            window.DanaiwaBoard.refreshBadge();
+          }
+        }
       } else {
         const nt = tier + 1;
         const prevTable = spawnTableIndex();
@@ -836,6 +845,7 @@
     state.revives = 0;        // 复活币只在本局有效，重开清零
     state.reviveGiven = 0;
     state.maxSynthesized = 0; // 掉落表回到初始
+    state.rexFx = null;
     state.freeze = 0;
     state.pending = pickSpawnTier();
     state.next = pickSpawnTier(state.pending);
@@ -1228,6 +1238,28 @@
     if (state.flash > 0) state.flash = Math.max(0, state.flash - dt * 2.2);
   }
 
+  /* 第一次炸掉两个最高级时：从碰撞点旋转放大、迎面扑来后快速消失 */
+  function drawRexFx(dt) {
+    const f = state.rexFx;
+    if (!f) return;
+    f.t += dt;
+    const p = f.t / f.life;
+    if (p >= 1) { state.rexFx = null; return; }
+    if (!rexImg) return;
+    const e = p * p;
+    const scale = 0.25 + e * 5.5;
+    const rot = p * Math.PI * 1.8;
+    const alpha = p < 0.62 ? 1 : Math.max(0, (1 - p) / 0.38);
+    const w = 160 * scale;
+    const h = w * (rexImg.height / rexImg.width);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(f.x, f.y);
+    ctx.rotate(rot);
+    ctx.drawImage(rexImg, -w / 2, -h / 2, w, h);
+    ctx.restore();
+  }
+
   function render(dt) {
     ctx.setTransform(view.scale, 0, 0, view.scale, 0, 0);
     ctx.clearRect(0, 0, W, H);
@@ -1245,6 +1277,8 @@
       ctx.fillRect(0, 0, W, H);
       ctx.restore();
     }
+
+    drawRexFx(dt);          // 666 特效画在最上层，按真实时间播完
   }
 
   /* ---------------------------------------------------------
@@ -1351,7 +1385,14 @@
   const SPRITE_RETRY = 3;      // 每个素材最多试几次
 
   let blurImg = null;          // 极模糊占位图（内联 data URL，秒到）
+  let rexImg = null;           // 第一次炸最高级时的 666 图
   const blurCfg = window.FRUIT_BLUR || null;
+
+  function loadRexImg() {
+    const im = new Image();
+    im.onload = () => { rexImg = im; };
+    im.src = 'assets/666.webp';
+  }
 
   function loadBlur() {
     if (!blurCfg || !blurCfg.src) return;
@@ -1424,6 +1465,7 @@
     reset();
     loadBlur();             // 占位图是内联的，几乎立刻可用
     loadSprites();          // 贴图异步到位，到了会自动重画预览
+    loadRexImg();           // 666 特效图（第一次炸最高级时用）
     requestAnimationFrame((t) => { last = t; requestAnimationFrame(frame); });
   }
 

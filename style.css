@@ -587,6 +587,16 @@ body {
   white-space: nowrap;
 }
 
+/* 合出过两个最高级的存档：名字后面的 666 小图标 */
+.rex-badge {
+  display: inline-block;
+  height: 1.15em;
+  width: auto;
+  margin-left: 4px;
+  vertical-align: -0.18em;
+  align-self: center;
+}
+
 .board-score {
   flex: 0 0 auto;
   font-size: 16px;
