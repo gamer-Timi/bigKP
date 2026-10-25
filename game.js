@@ -31,7 +31,7 @@
   const MAX_BONUS = 114514;  // 两只最大级相撞的奖励分（改造版：原 500 → 114514）
   const MAX_MERGE_GIVES_REVIVE = true;  // 两只REX一起炸掉时，额外送一枚复活币
   const FREEZE_MS = 130;     // 清场时的定格，让这一下有重量
-  const REVIVE_STEP = 2000;  // 每累计多少分，发一枚复活币
+  const REVIVE_STEP = 1000;  // 每累计多少分，发一枚复活币（改造版：1000）
   const MERGE_PAD = 0.8;     // 合成判定的接触容差（px）
 
   /* —— Q 弹手感 —— */
@@ -48,8 +48,9 @@
      pc1/pc2: 粒子/汁水的颜色（取自贴图主体平均色） */
   const ASSET_FILL = 0.92;   // 贴图里主体占画布长边的比例，与生成脚本保持一致
 
-  /* 改造版：1~5 级 = 原项目 90%，第 6 级 = 80%，7~9 级 = 88%，
-     第 10 级 = 95%，第 11 级（新插入）= 原第 10 级的 100%，第 12 级 = 105% */
+  /* 改造版：1~5 级 = 原项目 90%，第 6 级 = 80%，
+     7~12 级 = 上一版的 95%（7~9 级 88%×0.95，10 级 95%×0.95，
+     11 级 100%×0.95，12 级 105%×0.95） */
   const FRUITS = [
     { name: '葡萄',   r: 15.3, c1: '#c084f5', c2: '#7a3fb0', line: 'rgba(74,26,120,.35)',
       file: 'assets/fruits/01-grape.webp',     pc1: '#e9c466', pc2: '#b8903a' },
@@ -63,17 +64,17 @@
       file: 'assets/fruits/05-kiwi.webp',      pc1: '#c4a559', pc2: '#94793c' },
     { name: '番茄',   r: 46.4, c1: '#ff8a66', c2: '#c62f28', line: 'rgba(120,20,10,.32)',
       file: 'assets/fruits/06-tomato.webp',    pc1: '#fbd75a', pc2: '#cba63c' },
-    { name: '桃子',   r: 60.72, c1: '#ffd0d0', c2: '#ea7f93', line: 'rgba(160,60,80,.3)',
+    { name: '桃子',   r: 57.684, c1: '#ffd0d0', c2: '#ea7f93', line: 'rgba(160,60,80,.3)',
       file: 'assets/fruits/07-peach.webp',     pc1: '#f7c45a', pc2: '#c99a3e' },
-    { name: '菠萝',   r: 71.28, c1: '#ffe07a', c2: '#c88a12', line: 'rgba(130,80,0,.32)',
+    { name: '菠萝',   r: 67.716, c1: '#ffe07a', c2: '#c88a12', line: 'rgba(130,80,0,.32)',
       file: 'assets/fruits/08-pineapple.webp', pc1: '#ffd37b', pc2: '#d1a252' },
-    { name: '椰子',   r: 82.72, c1: '#f0e2c6', c2: '#9b7b4f', line: 'rgba(90,64,32,.35)',
+    { name: '椰子',   r: 78.584, c1: '#f0e2c6', c2: '#9b7b4f', line: 'rgba(90,64,32,.35)',
       file: 'assets/fruits/09-coconut.webp',   pc1: '#ffd771', pc2: '#d3a94e' },
-    { name: '半奶蛙', r: 102.6, c1: '#ff9d78', c2: '#c23a2c', line: 'rgba(120,24,16,.32)',
+    { name: '半奶蛙', r: 97.47, c1: '#ff9d78', c2: '#c23a2c', line: 'rgba(120,24,16,.32)',
       file: 'assets/fruits/10-halfmelon.webp', pc1: '#ccab68', pc2: '#9c8047' },
-    { name: 'REX·中', r: 108.0, c1: '#b8e986', c2: '#2a7a3a', line: 'rgba(20,90,40,.38)',
+    { name: 'REX·中', r: 102.6, c1: '#b8e986', c2: '#2a7a3a', line: 'rgba(20,90,40,.38)',
       file: 'assets/fruits/11-rex-mid.webp', pc1: '#cfe07a', pc2: '#8fae3c' },
-    { name: 'REX',   r: 130.2, c1: '#7ce878', c2: '#1c8a33', line: 'rgba(12,70,24,.4)',
+    { name: 'REX',   r: 123.69, c1: '#7ce878', c2: '#1c8a33', line: 'rgba(12,70,24,.4)',
       file: 'assets/fruits/12-watermelon.webp', pc1: '#eece9b', pc2: '#c0a271' }
   ];
 
@@ -88,13 +89,15 @@
      · 第 8 级合出来后：1~7 级 0.24 / 0.24 / 0.20 / 0.16 / 0.12 / 0.03 / 0.01
      · 第 9 级合出来后：1~8 级 0.22 / 0.24 / 0.20 / 0.16 / 0.12 / 0.03 / 0.02 / 0.01
      · 第 10 级合出来后：1~8 级 0.22 / 0.21 / 0.20 / 0.16 / 0.12 / 0.04 / 0.03 / 0.02
-     · 第 11 级之后不再变化 */
+     · 第 11 级合出来后：1~8 级 0.20 / 0.20 / 0.20 / 0.12 / 0.12 / 0.10 / 0.04 / 0.02
+     · 之后维持这张表 */
   const SPAWN_TABLES = [
     { tiers: [0, 1, 2, 3, 4],       weights: [0.28, 0.24, 0.20, 0.16, 0.12] },
     { tiers: [0, 1, 2, 3, 4, 5],    weights: [0.24, 0.24, 0.20, 0.16, 0.12, 0.04] },
     { tiers: [0, 1, 2, 3, 4, 5, 6], weights: [0.24, 0.24, 0.20, 0.16, 0.12, 0.03, 0.01] },
     { tiers: [0, 1, 2, 3, 4, 5, 6, 7], weights: [0.22, 0.24, 0.20, 0.16, 0.12, 0.03, 0.02, 0.01] },
-    { tiers: [0, 1, 2, 3, 4, 5, 6, 7], weights: [0.22, 0.21, 0.20, 0.16, 0.12, 0.04, 0.03, 0.02] }
+    { tiers: [0, 1, 2, 3, 4, 5, 6, 7], weights: [0.22, 0.21, 0.20, 0.16, 0.12, 0.04, 0.03, 0.02] },
+    { tiers: [0, 1, 2, 3, 4, 5, 6, 7], weights: [0.20, 0.20, 0.20, 0.12, 0.12, 0.10, 0.04, 0.02] }
   ];
 
   const BEST_KEY = 'danaiwa.best.v1';
@@ -143,7 +146,8 @@
   /* 当前该用第几张掉落表（0~4），取决于本局已合成出的最高 tier */
   function spawnTableIndex() {
     const m = state.maxSynthesized;
-    if (m >= 9) return 4;    // 第 10 级（tier 9）及以后
+    if (m >= 10) return 5;   // 第 11 级（tier 10）及以后
+    if (m >= 9) return 4;    // 第 10 级（tier 9）
     if (m >= 8) return 3;    // 第 9 级（tier 8）
     if (m >= 7) return 2;    // 第 8 级（tier 7）
     if (m >= 6) return 1;    // 第 7 级（tier 6）
@@ -261,7 +265,7 @@
     over: false,
     flash: 0,
     revives: 0,        // 本局还剩几枚复活币（重开清零）
-    reviveGiven: 0,    // 本局已经发放过几次（用来判断跨过新的 2000 分）
+    reviveGiven: 0,    // 本局已经发放过几次（用来判断跨过新的 1000 分）
     maxSynthesized: 0, // 本局已合成出的最高 tier（决定掉落表，0 起）
     freeze: 0          // 命中定格剩余秒数
   };
@@ -557,8 +561,8 @@
       if (tier >= MAX_TIER) {
         /* 两只最大级 → 一起炸掉，拿 114514 分（外加一枚复活币）。
            注意：它同时清掉了两块最大的水果，是后期唯一的泄压阀，不能取消。
-           这里跳过「每 2000 分发一枚」的自动发放，只按规则额外发 1 枚，
-           否则 114514 分一次性会刷出 57 枚复活币，把玩法直接打穿。 */
+           这里跳过「每 1000 分发一枚」的自动发放，只按规则额外发 1 枚，
+           否则 114514 分一次性会刷出 114 枚复活币，把玩法直接打穿。 */
         addScore(MAX_BONUS, undefined, undefined, undefined, true);
         burst(mx, my, MAX_TIER, 90, 560);
         burst(mx, my, MAX_TIER - 2, 42, 340);
@@ -632,7 +636,7 @@
     if (state.particles.length > 420) state.particles.splice(0, state.particles.length - 420);
   }
 
-  /* 复活币胶囊：有币才显示，跨过 2000 分时弹一下。
+  /* 复活币胶囊：有币才显示，跨过 1000 分时弹一下。
      注意 0 枚时也要把文字刷成 ×0 —— 否则下次显示出来的是上一次的旧数字。 */
   function paintRevives(pop) {
     if (!reviveBadge) return;
@@ -677,8 +681,8 @@
       state.floats.push({ x, y, text: text || ('+' + n), life: 1 });
     }
     if (skipReviveGrant) {
-      /* 大额奖励分不计入「每 2000 分一枚」的进度：
-         否则这 114514 分会一次性刷出 57 枚复活币，
+      /* 大额奖励分不计入「每 1000 分一枚」的进度：
+         否则这 114514 分会一次性刷出 114 枚复活币，
          这里把进度直接对齐到当前分数，只保留规则里明说的那一枚。 */
       state.reviveGiven = Math.floor(state.score / REVIVE_STEP);
     } else {
