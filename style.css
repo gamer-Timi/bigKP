@@ -847,3 +847,14 @@ body {
   .stage { height: 92vh; }
   .chain-box { display: none; }
 }
+
+/* 消除模式 */
+#game.erase-mode {
+  filter: brightness(0.6);
+  cursor: crosshair;
+}
+.btn.erase-on {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(135deg, #ffb347, #ff7a59 55%, #e14b4b);
+}

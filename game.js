@@ -121,6 +121,7 @@
   const soundBtn   = document.getElementById('soundBtn');
   const resetBtn   = document.getElementById('resetBtn');
   const restartBtn = document.getElementById('restartBtn');
+  const eraseBtn   = document.getElementById('eraseBtn');
   const overlayEl     = document.getElementById('overlay');
   const revivePromptEl = document.getElementById('revivePrompt');
   const overPanelEl    = document.getElementById('overPanel');
@@ -269,6 +270,7 @@
     maxSynthesized: 0, // 本局已合成出的最高 tier（决定掉落表，0 起）
     rexFx: null,       // 本局正在播放的 666 特效
     rexFxPlayed: false,// 本局是否已经播过 666 特效（每局第一次最高级碰撞播一次）
+    eraseMode: false,  // 消除模式
     freeze: 0          // 命中定格剩余秒数
   };
 
@@ -725,7 +727,7 @@
   }
 
   function tryDrop() {
-    if (state.over || !state.ready) return;
+    if (state.over || !state.ready || state.eraseMode) return;
     const tier = state.pending;
     const [lo, hi] = aimLimit(tier);
     const x = clamp(state.aimX, lo, hi);
@@ -740,6 +742,53 @@
     Sound.drop();
     drawNext();
     if (state.balls.length > 90) state.balls = state.balls.filter(b => !b.dead);
+  }
+
+  /* ---- 消除模式 ---- */
+  function setEraseMode(on) {
+    if (on && state.over) return;
+    state.eraseMode = !!on;
+    if (canvas) {
+      if (state.eraseMode) canvas.classList.add('erase-mode');
+      else canvas.classList.remove('erase-mode');
+    }
+    if (eraseBtn) {
+      if (state.eraseMode) eraseBtn.classList.add('erase-on');
+      else eraseBtn.classList.remove('erase-on');
+    }
+  }
+
+  function ballAt(x, y) {
+    for (let i = state.balls.length - 1; i >= 0; i--) {
+      const b = state.balls[i];
+      if (b.dead) continue;
+      for (let k = 0; k < b.parts.length; k++) {
+        const dx = x - b.wx[k], dy = y - b.wy[k];
+        if (dx * dx + dy * dy <= b.ws[k] * b.ws[k]) return b;
+      }
+    }
+    return null;
+  }
+
+  /* 消除模式下点一下：花 2 枚复活币消掉一颗球，分数不变 */
+  function eraseAt(clientX, clientY) {
+    if (!state.eraseMode || state.over) return false;
+    if (state.revives < 2) {
+      state.floats.push({ x: W / 2, y: 210, text: '复活币不够（需要 2 枚）', life: 1.4 });
+      return false;
+    }
+    const rect = canvas.getBoundingClientRect();
+    const x = (clientX - rect.left) * (W / rect.width);
+    const y = (clientY - rect.top) * (H / rect.height);
+    const b = ballAt(x, y);
+    if (!b) return false;
+    state.revives -= 2;
+    paintRevives(false);
+    const idx = state.balls.indexOf(b);
+    if (idx >= 0) state.balls.splice(idx, 1);
+    Sound.merge(3);
+    haptic(10);
+    return true;
   }
 
   /* ---------------------------------------------------------
@@ -794,6 +843,7 @@
 
   function gameOver() {
     state.over = true;
+    setEraseMode(false);
     finalScoreEl.textContent = state.score;
     finalBestEl.textContent = state.best;
     Sound.over();
@@ -852,6 +902,7 @@
     state.maxSynthesized = 0; // 掉落表回到初始
     state.rexFx = null;
     state.rexFxPlayed = false; // 新的一局，允许再播一次 666 特效
+    setEraseMode(false);
     state.freeze = 0;
     state.pending = pickSpawnTier();
     state.next = pickSpawnTier(state.pending);
@@ -1062,7 +1113,7 @@
   }
 
   function drawAim() {
-    if (state.over) return;
+    if (state.over || state.eraseMode) return;
     const tier = state.pending;
     const r = FRUITS[tier].r;
     const [lo, hi] = aimLimit(tier);
@@ -1301,13 +1352,14 @@
   let touchAiming = false;
 
   stage.addEventListener('pointermove', (e) => {
-    if (state.over) return;
+    if (state.over || state.eraseMode) return;
     if (e.pointerType === 'touch' && !touchAiming) return;
     moveAim(pointerToX(e.clientX));
   });
 
   stage.addEventListener('pointerdown', (e) => {
     if (state.over) return;
+    if (state.eraseMode) { eraseAt(e.clientX, e.clientY); return; }
     Sound.ensure();
     moveAim(pointerToX(e.clientX));
     if (e.pointerType === 'touch') {
@@ -1323,7 +1375,7 @@
 
   stage.addEventListener('pointerup', (e) => {
     if (e.pointerType !== 'touch') return;
-    if (!touchAiming) return;
+    if (!touchAiming || state.eraseMode) return;
     touchAiming = false;
     if (state.over) return;
     moveAim(pointerToX(e.clientX));
@@ -1353,7 +1405,7 @@
       e.preventDefault();
     } else if (e.code === 'Space' || e.code === 'Enter' || e.code === 'ArrowDown') {
       /* 空格/回车只在局内投放；结束后不再用它们重开（免得手快连着开新局） */
-      if (!state.over) { tryDrop(); e.preventDefault(); }
+      if (!state.over && !state.eraseMode) { tryDrop(); e.preventDefault(); }
     } else if (e.code === 'KeyR') {
       reset();
       e.preventDefault();
@@ -1466,6 +1518,7 @@
     /* 越线那一屏的两个按钮 */
     if (reviveBtn) reviveBtn.addEventListener('click', revive);
     if (giveUpBtn) giveUpBtn.addEventListener('click', settle);
+    if (eraseBtn) eraseBtn.addEventListener('click', () => setEraseMode(!state.eraseMode));
 
     drawChain();
     reset();
@@ -1485,5 +1538,6 @@
   window.__DNW__ = { state, reset, revive, settle, gameOver, tryDrop, stepPhysics, update, FRUITS,
                      render, resizeCanvas, shapeOf, makeBall, paintRevives, addScore,
                      spawnTableIndex, rollSpawnTier, SPAWN_TABLES, MAX_BONUS, REVIVE_STEP,
+                     setEraseMode, eraseAt,
                      blurReady: () => !!blurImg };
 })();
