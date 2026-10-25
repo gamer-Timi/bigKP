@@ -883,3 +883,18 @@ body {
   border-color: transparent;
   background: linear-gradient(135deg, #ffb347, #ff7a59 55%, #e14b4b);
 }
+
+/* 手机端：消除按钮再透明一点，别挡棋盘 */
+@media (max-width: 860px) {
+  .erase-fab {
+    background: rgba(255, 255, 255, .55);
+    border-color: rgba(255, 255, 255, .55);
+    opacity: .9;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+  .erase-fab.erase-on {
+    background: linear-gradient(135deg, rgba(255,179,71,.7), rgba(255,122,89,.7) 55%, rgba(225,75,75,.7));
+    opacity: .95;
+  }
+}

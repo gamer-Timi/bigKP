@@ -1519,7 +1519,14 @@
     /* 越线那一屏的两个按钮 */
     if (reviveBtn) reviveBtn.addEventListener('click', revive);
     if (giveUpBtn) giveUpBtn.addEventListener('click', settle);
-    if (eraseBtn) eraseBtn.addEventListener('click', () => setEraseMode(!state.eraseMode));
+    if (eraseBtn) {
+      /* 按钮在棋盘里，阻止 pointer 事件冒泡到 stage，避免“按按钮顺带落一颗” */
+      eraseBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+      eraseBtn.addEventListener('pointermove', (e) => e.stopPropagation());
+      eraseBtn.addEventListener('pointerup', (e) => e.stopPropagation());
+      eraseBtn.addEventListener('pointercancel', (e) => e.stopPropagation());
+      eraseBtn.addEventListener('click', () => setEraseMode(!state.eraseMode));
+    }
 
     drawChain();
     reset();
