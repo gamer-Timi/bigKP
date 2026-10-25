@@ -903,6 +903,7 @@
     state.rexFx = null;
     state.rexFxPlayed = false; // 新的一局，允许再播一次 666 特效
     setEraseMode(false);
+    if (window.DanaiwaBoard && window.DanaiwaBoard.onNewGame) window.DanaiwaBoard.onNewGame();
     state.freeze = 0;
     state.pending = pickSpawnTier();
     state.next = pickSpawnTier(state.pending);

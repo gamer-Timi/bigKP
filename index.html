@@ -30,6 +30,9 @@
       <span class="revive-chip-ico" aria-hidden="true">🪙</span><span id="reviveCount">×0</span>
     </div>
 
+    <!-- 消除按钮：单独浮在棋盘右下角，手机端不会跟顶部按钮挤在一起 -->
+    <button class="btn erase-fab" id="eraseBtn" type="button" title="消除模式：消耗 2 枚复活币消掉一颗球">🧹 消除 <small>2币</small></button>
+
     <div class="overlay" id="overlay">
       <div class="dialog">
 
@@ -111,9 +114,6 @@
       </button>
       <button class="btn btn-primary" id="resetBtn" type="button" title="重新开始">
         <span class="ico">↻</span><span class="lbl">重开</span>
-      </button>
-      <button class="btn btn-wide" id="eraseBtn" type="button">
-        <span class="ico">🧹</span><span class="lbl">消除（2币）</span>
       </button>
     </div>
 

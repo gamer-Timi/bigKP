@@ -78,8 +78,13 @@
 
   function addScore(name, score) {
     const tag = PREFIX + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
-    const value = JSON.stringify({ n: name, s: score, t: Date.now(), r: hasRex() ? 1 : 0 });
-    return post({ action: 'update', tag: tag, value: value });
+    const rec = { n: name, s: score, t: Date.now(), r: hasRex() ? 1 : 0 };
+    const value = JSON.stringify(rec);
+    return post({ action: 'update', tag: tag, value: value }).then((res) => {
+      /* 记住本局提交的这条，改名时用同一个 tag 覆盖，不新增记录 */
+      lastRecord = { tag: tag, rec: rec };
+      return res;
+    });
   }
 
   /* 读榜：服务端是按提交时间倒序返回的，取最新 SCAN_PAGES 页就够覆盖最近 20 次提交 */
@@ -225,10 +230,22 @@
   function commitName(raw) {
     nameBlocked = false;
     const n = cleanName(raw);
+    const prev = myName();
     saveName(n);
+    const finalName = myName();
     if (nameBlocked) setMsg('昵称含屏蔽词，已改用「' + DEFAULT_NAME + '」', 'bad');
     paintName();
     if (nickInput) nickInput.value = loadName();
+    /* 本局已经提交过：改名后覆盖同一条记录的名字，分数/时间/徽章不变 */
+    if (BOARD_UI_ENABLED && lastRecord && finalName !== prev && finalName !== lastRecord.rec.n) {
+      const updated = Object.assign({}, lastRecord.rec, { n: finalName });
+      post({ action: 'update', tag: lastRecord.tag, value: JSON.stringify(updated) })
+        .then(() => {
+          lastRecord.rec = updated;
+          if (modal && modal.classList.contains('show')) refreshBoard(null).catch(() => {});
+        })
+        .catch(() => {});
+    }
     return n;
   }
 
@@ -260,6 +277,7 @@
   let lastSubmitAt = 0;
   let submitting = false;
   let pendingScore = 0;          // 本局分数（结算/重试用）
+  let lastRecord = null;         // 本局刚提交的那条 { tag, rec }
 
   function setMsg(text, kind) {
     if (!msgEl) return;
@@ -509,6 +527,7 @@
     close: closeBoard,
     refresh: refreshBoard,
     onGameOver: onGameOver,
+    onNewGame: function () { lastRecord = null; },
     fetchTop: fetchTop,
     submitScore: addScore,
     refreshBadge: paintName,

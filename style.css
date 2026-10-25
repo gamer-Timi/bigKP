@@ -96,6 +96,7 @@ body {
 .overlay {
   position: absolute;
   inset: 0;
+  z-index: 7;
   display: grid;
   place-items: center;
   padding: 24px;
@@ -854,6 +855,30 @@ body {
   cursor: crosshair;
 }
 .btn.erase-on {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(135deg, #ffb347, #ff7a59 55%, #e14b4b);
+}
+
+/* 消除按钮：浮在棋盘右下角，手机上不跟顶部按钮挤 */
+.erase-fab {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, .92);
+  box-shadow: 0 6px 16px rgba(140, 96, 56, .22);
+}
+.erase-fab small { font-size: 10px; opacity: .72; }
+.erase-fab.erase-on {
   color: #fff;
   border-color: transparent;
   background: linear-gradient(135deg, #ffb347, #ff7a59 55%, #e14b4b);
