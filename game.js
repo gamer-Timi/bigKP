@@ -48,8 +48,8 @@
      pc1/pc2: 粒子/汁水的颜色（取自贴图主体平均色） */
   const ASSET_FILL = 0.92;   // 贴图里主体占画布长边的比例，与生成脚本保持一致
 
-  /* 改造版（相对原版）：1~5 级 90%，6 级 80%，7 级 83.6%，
-     8~9 级 83.5%，10 级 89%，11 级 94%，12 级 99.9% */
+  /* 改造版（相对原版）：1~5 级 90%，6 级 80%，7 级 83.6%，8 级 83.5%，
+     9 级 83%，10 级 87.5%，11 级 94%，12 级 99.9% */
   const FRUITS = [
     { name: '葡萄',   r: 15.3, c1: '#c084f5', c2: '#7a3fb0', line: 'rgba(74,26,120,.35)',
       file: 'assets/fruits/01-grape.webp',     pc1: '#e9c466', pc2: '#b8903a' },
@@ -67,9 +67,9 @@
       file: 'assets/fruits/07-peach.webp',     pc1: '#f7c45a', pc2: '#c99a3e' },
     { name: '菠萝',   r: 67.635, c1: '#ffe07a', c2: '#c88a12', line: 'rgba(130,80,0,.32)',
       file: 'assets/fruits/08-pineapple.webp', pc1: '#ffd37b', pc2: '#d1a252' },
-    { name: '椰子',   r: 78.49, c1: '#f0e2c6', c2: '#9b7b4f', line: 'rgba(90,64,32,.35)',
+    { name: '椰子',   r: 78.02, c1: '#f0e2c6', c2: '#9b7b4f', line: 'rgba(90,64,32,.35)',
       file: 'assets/fruits/09-coconut.webp',   pc1: '#ffd771', pc2: '#d3a94e' },
-    { name: '半奶蛙', r: 96.12, c1: '#ff9d78', c2: '#c23a2c', line: 'rgba(120,24,16,.32)',
+    { name: '半奶蛙', r: 94.5, c1: '#ff9d78', c2: '#c23a2c', line: 'rgba(120,24,16,.32)',
       file: 'assets/fruits/10-halfmelon.webp', pc1: '#ccab68', pc2: '#9c8047' },
     { name: 'REX·中', r: 101.52, c1: '#b8e986', c2: '#2a7a3a', line: 'rgba(20,90,40,.38)',
       file: 'assets/fruits/11-rex-mid.webp', pc1: '#cfe07a', pc2: '#8fae3c' },
@@ -267,7 +267,8 @@
     revives: 0,        // 本局还剩几枚复活币（重开清零）
     reviveGiven: 0,    // 本局已经发放过几次（用来判断跨过新的 1000 分）
     maxSynthesized: 0, // 本局已合成出的最高 tier（决定掉落表，0 起）
-    rexFx: null,       // 第一次炸掉两个最高级时的 666 特效
+    rexFx: null,       // 本局正在播放的 666 特效
+    rexFxPlayed: false,// 本局是否已经播过 666 特效（每局第一次最高级碰撞播一次）
     freeze: 0          // 命中定格剩余秒数
   };
 
@@ -577,12 +578,16 @@
           state.revives++;
           paintRevives(true);
         }
-        /* 第一次把两个最高级撞在一起：播放 666 特效，并给这个存档打上永久标记 */
-        if (!localStorage.getItem(REX_KEY)) {
-          localStorage.setItem(REX_KEY, '1');
+        /* 每局第一次把两个最高级撞在一起：播放 666 特效（重开/重进都算新的一局） */
+        if (!state.rexFxPlayed) {
+          state.rexFxPlayed = true;
           state.rexFx = { x: mx, y: my, t: 0, life: 1.2 };
-          if (window.DanaiwaBoard && window.DanaiwaBoard.refreshBadge) {
-            window.DanaiwaBoard.refreshBadge();
+          /* 徽章是“这个存档曾经合出过”的永久标记，只在第一次写 localStorage */
+          if (!localStorage.getItem(REX_KEY)) {
+            localStorage.setItem(REX_KEY, '1');
+            if (window.DanaiwaBoard && window.DanaiwaBoard.refreshBadge) {
+              window.DanaiwaBoard.refreshBadge();
+            }
           }
         }
       } else {
@@ -846,6 +851,7 @@
     state.reviveGiven = 0;
     state.maxSynthesized = 0; // 掉落表回到初始
     state.rexFx = null;
+    state.rexFxPlayed = false; // 新的一局，允许再播一次 666 特效
     state.freeze = 0;
     state.pending = pickSpawnTier();
     state.next = pickSpawnTier(state.pending);
