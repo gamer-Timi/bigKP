@@ -48,8 +48,8 @@
      pc1/pc2: 粒子/汁水的颜色（取自贴图主体平均色） */
   const ASSET_FILL = 0.92;   // 贴图里主体占画布长边的比例，与生成脚本保持一致
 
-  /* 改造版：1~6 级 = 原项目 90%，7~9 级 = 100%，第 10 级 = 105%，
-     第 11 级（新插入）= 原第 10 级尺寸的 110%，第 12 级 = 120% */
+  /* 改造版：1~5 级 = 原项目 90%，第 6 级 = 80%，7~9 级 = 88%，
+     第 10 级 = 95%，第 11 级（新插入）= 原第 10 级的 100%，第 12 级 = 105% */
   const FRUITS = [
     { name: '葡萄',   r: 15.3, c1: '#c084f5', c2: '#7a3fb0', line: 'rgba(74,26,120,.35)',
       file: 'assets/fruits/01-grape.webp',     pc1: '#e9c466', pc2: '#b8903a' },
@@ -61,19 +61,19 @@
       file: 'assets/fruits/04-lemon.webp',     pc1: '#f6cd63', pc2: '#c9a040' },
     { name: '猕猴桃', r: 43.2, c1: '#b9e05a', c2: '#5d8c1c', line: 'rgba(60,90,10,.32)',
       file: 'assets/fruits/05-kiwi.webp',      pc1: '#c4a559', pc2: '#94793c' },
-    { name: '番茄',   r: 52.2, c1: '#ff8a66', c2: '#c62f28', line: 'rgba(120,20,10,.32)',
+    { name: '番茄',   r: 46.4, c1: '#ff8a66', c2: '#c62f28', line: 'rgba(120,20,10,.32)',
       file: 'assets/fruits/06-tomato.webp',    pc1: '#fbd75a', pc2: '#cba63c' },
-    { name: '桃子',   r: 69.0, c1: '#ffd0d0', c2: '#ea7f93', line: 'rgba(160,60,80,.3)',
+    { name: '桃子',   r: 60.72, c1: '#ffd0d0', c2: '#ea7f93', line: 'rgba(160,60,80,.3)',
       file: 'assets/fruits/07-peach.webp',     pc1: '#f7c45a', pc2: '#c99a3e' },
-    { name: '菠萝',   r: 81.0, c1: '#ffe07a', c2: '#c88a12', line: 'rgba(130,80,0,.32)',
+    { name: '菠萝',   r: 71.28, c1: '#ffe07a', c2: '#c88a12', line: 'rgba(130,80,0,.32)',
       file: 'assets/fruits/08-pineapple.webp', pc1: '#ffd37b', pc2: '#d1a252' },
-    { name: '椰子',   r: 94.0, c1: '#f0e2c6', c2: '#9b7b4f', line: 'rgba(90,64,32,.35)',
+    { name: '椰子',   r: 82.72, c1: '#f0e2c6', c2: '#9b7b4f', line: 'rgba(90,64,32,.35)',
       file: 'assets/fruits/09-coconut.webp',   pc1: '#ffd771', pc2: '#d3a94e' },
-    { name: '半奶蛙', r: 113.4, c1: '#ff9d78', c2: '#c23a2c', line: 'rgba(120,24,16,.32)',
+    { name: '半奶蛙', r: 102.6, c1: '#ff9d78', c2: '#c23a2c', line: 'rgba(120,24,16,.32)',
       file: 'assets/fruits/10-halfmelon.webp', pc1: '#ccab68', pc2: '#9c8047' },
-    { name: 'REX·中', r: 118.8, c1: '#b8e986', c2: '#2a7a3a', line: 'rgba(20,90,40,.38)',
+    { name: 'REX·中', r: 108.0, c1: '#b8e986', c2: '#2a7a3a', line: 'rgba(20,90,40,.38)',
       file: 'assets/fruits/11-rex-mid.webp', pc1: '#cfe07a', pc2: '#8fae3c' },
-    { name: 'REX',   r: 148.8, c1: '#7ce878', c2: '#1c8a33', line: 'rgba(12,70,24,.4)',
+    { name: 'REX',   r: 130.2, c1: '#7ce878', c2: '#1c8a33', line: 'rgba(12,70,24,.4)',
       file: 'assets/fruits/12-watermelon.webp', pc1: '#eece9b', pc2: '#c0a271' }
   ];
 
