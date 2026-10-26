@@ -48,9 +48,8 @@
      pc1/pc2: 粒子/汁水的颜色（取自贴图主体平均色） */
   const ASSET_FILL = 0.92;   // 贴图里主体占画布长边的比例，与生成脚本保持一致
 
-  /* 改造版（相对原版）：1~5 级 90%，6 级 80%，7 级 83.6%，8 级 83.5%，
-     9 级 83%，9.5 级 = 10 级 87.5% 的大小（94.5），10 级 87.5%，
-     10.5 级 94%，11 级 99.9% */
+  /* 改造版：1~8 级大小不变；9/9.5/10/10.5/11 在“当前大小”基础上
+     分别再乘 95% / 85% / 90% / 90% / 90% */
   const FRUITS = [
     { name: '葡萄',   r: 15.3, c1: '#c084f5', c2: '#7a3fb0', line: 'rgba(74,26,120,.35)',
       file: 'assets/fruits/01-grape.webp',     pc1: '#e9c466', pc2: '#b8903a' },
@@ -68,20 +67,20 @@
       file: 'assets/fruits/07-peach.webp',     pc1: '#f7c45a', pc2: '#c99a3e' },
     { name: '菠萝',   r: 67.635, c1: '#ffe07a', c2: '#c88a12', line: 'rgba(130,80,0,.32)',
       file: 'assets/fruits/08-pineapple.webp', pc1: '#ffd37b', pc2: '#d1a252' },
-    { name: '椰子',   r: 78.02, c1: '#f0e2c6', c2: '#9b7b4f', line: 'rgba(90,64,32,.35)',
+    { name: '椰子',   r: 74.119, c1: '#f0e2c6', c2: '#9b7b4f', line: 'rgba(90,64,32,.35)',
       file: 'assets/fruits/09-coconut.webp',   pc1: '#ffd771', pc2: '#d3a94e' },
-    { name: '9.5',    r: 94.5, c1: '#cfe0b8', c2: '#5d8c3c', line: 'rgba(50,100,40,.34)',
+    { name: '9.5',    r: 80.325, c1: '#cfe0b8', c2: '#5d8c3c', line: 'rgba(50,100,40,.34)',
       file: 'assets/fruits/10-ninehalf.webp',  pc1: '#d8c07a', pc2: '#a88a4a' },
-    { name: '半奶蛙', r: 94.5, c1: '#ff9d78', c2: '#c23a2c', line: 'rgba(120,24,16,.32)',
+    { name: '半奶蛙', r: 85.05, c1: '#ff9d78', c2: '#c23a2c', line: 'rgba(120,24,16,.32)',
       file: 'assets/fruits/11-halfmelon.webp', pc1: '#ccab68', pc2: '#9c8047' },
-    { name: 'REX·中', r: 101.52, c1: '#b8e986', c2: '#2a7a3a', line: 'rgba(20,90,40,.38)',
+    { name: 'REX·中', r: 91.368, c1: '#b8e986', c2: '#2a7a3a', line: 'rgba(20,90,40,.38)',
       file: 'assets/fruits/12-rex-mid.webp', pc1: '#cfe07a', pc2: '#8fae3c' },
-    { name: 'REX',   r: 123.876, c1: '#7ce878', c2: '#1c8a33', line: 'rgba(12,70,24,.4)',
+    { name: 'REX',   r: 111.4884, c1: '#7ce878', c2: '#1c8a33', line: 'rgba(12,70,24,.4)',
       file: 'assets/fruits/13-watermelon.webp', pc1: '#eece9b', pc2: '#c0a271' }
   ];
 
   /* 合成出 tier 的得分（三角数） */
-  const MERGE_SCORE = [0, 1, 3, 6, 10, 15, 21, 28, 36, 45, 55, 66, 78];
+  const MERGE_SCORE = [0, 1, 6, 10, 15, 21, 28, 36, 45, 55, 66, 78, 91];
 
   /* 新水果的掉落权重（越小越常见）
      改造版：随「本局已合成出的最高等级」动态切换。
@@ -561,8 +560,8 @@
   /* 相同等级相撞 → 下一级；7.png 是分支：66% → 8.png，34% → 9.png */
   function mergeInto(tier) {
     if (tier === 6) return Math.random() < 0.66 ? 7 : 8;
-    if (tier === 7) return 9;    // 8 + 8 → 9.5
-    if (tier === 8) return 10;   // 9 + 9 → 10
+    if (tier === 7) return 10;   // 8 + 8 → 10
+    if (tier === 8) return 9;    // 9 + 9 → 9.5
     if (tier === 9) return 11;   // 9.5 + 9.5 → 10.5
     if (tier === 10) return 11;  // 10 + 10 → 10.5
     if (tier === 11) return 12;  // 10.5 + 10.5 → 11
@@ -1246,9 +1245,9 @@
     chainCtx.setTransform(1, 0, 0, 1, 0, 0);
     chainCtx.clearRect(0, 0, cw, ch);
 
-    /* 主线：1~8 → 9.5 → 10.5 → 11
-       支线：7 → 9 → 10 → 10.5（汇合）；不标概率 */
-    const top = [0, 1, 2, 3, 4, 5, 6, 7, 9, 11, 12];
+    /* 主线：1~8 → 10 → 10.5 → 11
+       支线：7 → 9 → 9.5 → 10.5（汇合）；不标概率 */
+    const top = [0, 1, 2, 3, 4, 5, 6, 7, 10, 11, 12];
     const slot = cw / top.length;
     const yTop = ch * 0.30;
     const yBot = ch * 0.74;
@@ -1268,7 +1267,7 @@
       chainCtx.restore();
     }
 
-    /* 7 → 9 的竖向分支；10 → 10.5 的汇合线 */
+    /* 7 → 9 的竖向分支；9.5 → 10.5 的汇合线 */
     line(xAt(6), yTop + rTop, xAt(6), yBot - rBot);
     line(xAt(7), yBot - rBot, xAt(9), yTop + rTop);
 
@@ -1287,9 +1286,9 @@
       }
     }
 
-    /* 支线：9 → 10 */
+    /* 支线：9 → 9.5 */
     drawFruit(chainCtx, xAt(6), yBot, rBot, 8, 0, 1);
-    drawFruit(chainCtx, xAt(7), yBot, rBot, 10, 0, 1);
+    drawFruit(chainCtx, xAt(7), yBot, rBot, 9, 0, 1);
     chainCtx.save();
     chainCtx.globalAlpha = 0.45;
     chainCtx.fillStyle = '#b08a68';
