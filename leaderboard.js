@@ -24,7 +24,7 @@
                '2812e2573b5ff4083b4cf8');
   var USER = _x('3e5dff46334bf0');
   var SECRET = _x('6c5aa4156f0da944');
-  var PREFIX = 'kp_';   // 改造版：独立前缀，不跟原版的 dnw_ 混榜
+  var PREFIX = 'kp2_';   // 2026-10 重置：新空榜；旧 kp_ 记录保留但不再显示
 
   const NAME_KEY = 'danaiwa.name';
   /* 徽章按“本局/本次提交”算，不再读写 localStorage */
