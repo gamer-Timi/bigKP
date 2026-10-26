@@ -24,14 +24,14 @@
                '2812e2573b5ff4083b4cf8');
   var USER = _x('3e5dff46334bf0');
   var SECRET = _x('6c5aa4156f0da944');
-  var PREFIX = 'kp2_';   // 2026-10 重置：新空榜；旧 kp_ 记录保留但不再显示
+  var PREFIX = 'k_';     // 2026-10 重置：更短前缀 + 新空榜；旧记录保留但不再显示
 
   const NAME_KEY = 'danaiwa.name';
   /* 徽章按“本局/本次提交”算，不再读写 localStorage */
   const DEFAULT_NAME = '默认用户';   // 没填昵称就用这个
   const MUTE_MIN_GAP = 3000;        // 两次提交至少间隔 3 秒
   const MAX_SCORE = 99999999;       // 明显离谱的成绩直接不收
-  const SCAN_PAGES = 2;             // 榜单只取最近 20 次提交，扫最新两页足够
+  const SCAN_PAGES = 1;             // 最新一页 100 条已覆盖最近 20 次提交，少一次请求
   const WINDOW = 20;                // 「最近 N 次提交」这个窗口的大小
 
   /* ---------------------------------------------------------
@@ -88,30 +88,19 @@
     });
   }
 
-  /* 读榜：服务端是按提交时间倒序返回的，取最新 SCAN_PAGES 页就够覆盖最近 20 次提交 */
+  /* 读榜：服务端按提交时间倒序返回；最新 1 页（100 条）已覆盖最近 20 次提交，
+     少一次网络往返，打开榜单更快 */
   function searchRecent() {
-    const out = {};
-    let no = 1, page = 0;
-
-    function step() {
-      return post({
-        action: 'search', no: String(no), count: '100',
-        tag: PREFIX, type: 'both'
-      }).then((obj) => {
-        const keys = [];
-        for (const k in obj) {
-          if (k.indexOf(PREFIX) === 0 && typeof obj[k] === 'string') keys.push(k);
-        }
-        for (let i = 0; i < keys.length; i++) out[keys[i]] = obj[keys[i]];
-        page++;
-        if (page < SCAN_PAGES) {
-          no += 100;
-          return step();
-        }
-        return out;
-      });
-    }
-    return step();
+    return post({
+      action: 'search', no: '1', count: '100',
+      tag: PREFIX, type: 'both'
+    }).then((obj) => {
+      const out = {};
+      for (const k in obj) {
+        if (k.indexOf(PREFIX) === 0 && typeof obj[k] === 'string') out[k] = obj[k];
+      }
+      return out;
+    });
   }
 
   /* 提交时间：优先用记录里的 t，没有就从 tag 里的时间戳还原。
