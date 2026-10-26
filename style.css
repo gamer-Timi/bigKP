@@ -866,7 +866,7 @@ body {
   right: 12px;
   bottom: 12px;
   z-index: 6;
-  display: inline-flex;
+  display: none;
   align-items: center;
   gap: 4px;
   min-height: 40px;
@@ -884,9 +884,17 @@ body {
   background: linear-gradient(135deg, #ffb347, #ff7a59 55%, #e14b4b);
 }
 
+/* 电脑端：消除按钮放在侧边栏单独一行 */
+.erase-side {
+  width: 100%;
+  margin-top: 10px;
+}
+
 /* 手机端：消除按钮再透明一点，别挡棋盘 */
 @media (max-width: 860px) {
+  .erase-side { display: none; }
   .erase-fab {
+    display: inline-flex;
     background: rgba(255, 255, 255, .24);
     border-color: rgba(255, 255, 255, .3);
     opacity: .66;

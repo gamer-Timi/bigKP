@@ -48,10 +48,10 @@
      pc1/pc2: 粒子/汁水的颜色（取自贴图主体平均色） */
   const ASSET_FILL = 0.92;   // 贴图里主体占画布长边的比例，与生成脚本保持一致
 
-  /* 改造版：1~8 级大小不变；9/9.5/10/10.5/11 在“当前大小”基础上
-     分别再乘 95% / 85% / 90% / 90% / 90% */
+  /* 改造版：1 级 = 原版 89.9%，9 级 = 原版 79.9%，9.5 在 80.325 基础上 ×1.05，
+     10/10.5 在各自基础上 ×1.025，11 级 = 原版 91% */
   const FRUITS = [
-    { name: '葡萄',   r: 15.3, c1: '#c084f5', c2: '#7a3fb0', line: 'rgba(74,26,120,.35)',
+    { name: '葡萄',   r: 15.283, c1: '#c084f5', c2: '#7a3fb0', line: 'rgba(74,26,120,.35)',
       file: 'assets/fruits/01-grape.webp',     pc1: '#e9c466', pc2: '#b8903a' },
     { name: '樱桃',   r: 20.7, c1: '#ff8a99', c2: '#c62346', line: 'rgba(120,10,40,.35)',
       file: 'assets/fruits/02-cherry.webp',    pc1: '#ffe684', pc2: '#d8b44f' },
@@ -67,15 +67,15 @@
       file: 'assets/fruits/07-peach.webp',     pc1: '#f7c45a', pc2: '#c99a3e' },
     { name: '菠萝',   r: 67.635, c1: '#ffe07a', c2: '#c88a12', line: 'rgba(130,80,0,.32)',
       file: 'assets/fruits/08-pineapple.webp', pc1: '#ffd37b', pc2: '#d1a252' },
-    { name: '椰子',   r: 74.119, c1: '#f0e2c6', c2: '#9b7b4f', line: 'rgba(90,64,32,.35)',
+    { name: '椰子',   r: 75.106, c1: '#f0e2c6', c2: '#9b7b4f', line: 'rgba(90,64,32,.35)',
       file: 'assets/fruits/09-coconut.webp',   pc1: '#ffd771', pc2: '#d3a94e' },
-    { name: '9.5',    r: 80.325, c1: '#cfe0b8', c2: '#5d8c3c', line: 'rgba(50,100,40,.34)',
+    { name: '9.5',    r: 84.34125, c1: '#cfe0b8', c2: '#5d8c3c', line: 'rgba(50,100,40,.34)',
       file: 'assets/fruits/10-ninehalf.webp',  pc1: '#d8c07a', pc2: '#a88a4a' },
-    { name: '半奶蛙', r: 85.05, c1: '#ff9d78', c2: '#c23a2c', line: 'rgba(120,24,16,.32)',
+    { name: '半奶蛙', r: 87.17625, c1: '#ff9d78', c2: '#c23a2c', line: 'rgba(120,24,16,.32)',
       file: 'assets/fruits/11-halfmelon.webp', pc1: '#ccab68', pc2: '#9c8047' },
-    { name: 'REX·中', r: 91.368, c1: '#b8e986', c2: '#2a7a3a', line: 'rgba(20,90,40,.38)',
+    { name: 'REX·中', r: 93.6522, c1: '#b8e986', c2: '#2a7a3a', line: 'rgba(20,90,40,.38)',
       file: 'assets/fruits/12-rex-mid.webp', pc1: '#cfe07a', pc2: '#8fae3c' },
-    { name: 'REX',   r: 111.4884, c1: '#7ce878', c2: '#1c8a33', line: 'rgba(12,70,24,.4)',
+    { name: 'REX',   r: 112.84, c1: '#7ce878', c2: '#1c8a33', line: 'rgba(12,70,24,.4)',
       file: 'assets/fruits/13-watermelon.webp', pc1: '#eece9b', pc2: '#c0a271' }
   ];
 
@@ -104,8 +104,7 @@
 
   const BEST_KEY = 'danaiwa.best.v1';
   const MUTE_KEY = 'danaiwa.mute.v1';
-  const REX_KEY  = 'danaiwa.rex.v1';   // 是否已经合出过两个最高级（用于 666 徽章）
-  const CDD_KEY  = 'danaiwa.cdd.v1';   // 是否已经合成出 11.png（用于 cdd 徽章）
+  /* 666/cdd/gfdn 徽章按本局算，不写 localStorage */
 
   /* ---------------------------------------------------------
    *  DOM
@@ -126,6 +125,7 @@
   const resetBtn   = document.getElementById('resetBtn');
   const restartBtn = document.getElementById('restartBtn');
   const eraseBtn   = document.getElementById('eraseBtn');
+  const eraseFab   = document.getElementById('eraseFab');
   const overlayEl     = document.getElementById('overlay');
   const revivePromptEl = document.getElementById('revivePrompt');
   const overPanelEl    = document.getElementById('overPanel');
@@ -162,11 +162,19 @@
     return true;
   }
 
-  /* 合成出 11.png 的永久标记（cdd 徽章；666 徽章仍然优先） */
+  /* 本局合成出 11.png（cdd 徽章；666 仍然优先） */
   function markCdd() {
-    try { localStorage.setItem(CDD_KEY, '1'); } catch (e) { /* 忽略 */ }
-    if (window.DanaiwaBoard && window.DanaiwaBoard.refreshBadge) {
-      window.DanaiwaBoard.refreshBadge();
+    state.cddDone = true;
+    syncBadges();
+  }
+
+  function syncBadges() {
+    if (window.DanaiwaBoard && window.DanaiwaBoard.setRunBadges) {
+      window.DanaiwaBoard.setRunBadges({
+        r: state.rexDone,
+        c: state.cddDone,
+        g: state.gfdnDone
+      });
     }
   }
 
@@ -302,6 +310,9 @@
     rexFx: null,       // 本局正在播放的 666 特效
     rexFxPlayed: false,// 本局是否已经播过 666 特效（每局第一次最高级碰撞播一次）
     kzFx: null,        // 本局第一次合成 11.png 的 kz 特效
+    rexDone: false,    // 本局是否让两个 11.png 爆炸（666）
+    cddDone: false,    // 本局是否合成出 11.png（cdd）
+    gfdnDone: false,   // 本局 >=5000 且没有 666/cdd（gfdn）
     eraseMode: false,  // 消除模式
     freeze: 0          // 命中定格剩余秒数
   };
@@ -627,13 +638,8 @@
         if (!state.rexFxPlayed) {
           state.rexFxPlayed = true;
           state.rexFx = { x: mx, y: my, t: 0, life: 1.2 };
-          /* 徽章是“这个存档曾经合出过”的永久标记，只在第一次写 localStorage */
-          if (!localStorage.getItem(REX_KEY)) {
-            localStorage.setItem(REX_KEY, '1');
-            if (window.DanaiwaBoard && window.DanaiwaBoard.refreshBadge) {
-              window.DanaiwaBoard.refreshBadge();
-            }
-          }
+          state.rexDone = true;
+          syncBadges();
         }
       } else {
         const nt = mergeInto(tier);
@@ -664,7 +670,7 @@
           state.flash = 1;
           if (first) {
             /* 每局第一次合成 11.png：kz 图往上飞一下，飞完 +2 复活币 */
-            state.kzFx = { x: mx, y: my, t: 0, life: 0.45, done: false };
+            state.kzFx = { x: mx, y: my, t: 0, life: 2.0, done: false };
             markCdd();
           }
         }
@@ -803,10 +809,11 @@
       if (state.eraseMode) canvas.classList.add('erase-mode');
       else canvas.classList.remove('erase-mode');
     }
-    if (eraseBtn) {
-      if (state.eraseMode) eraseBtn.classList.add('erase-on');
-      else eraseBtn.classList.remove('erase-on');
-    }
+    [eraseBtn, eraseFab].forEach((b) => {
+      if (!b) return;
+      if (state.eraseMode) b.classList.add('erase-on');
+      else b.classList.remove('erase-on');
+    });
   }
 
   function ballAt(x, y) {
@@ -874,6 +881,8 @@
 
   /* 正式结算：弹结算窗 + 把成绩交给排行榜 */
   function settle() {
+    state.gfdnDone = state.score >= 5000 && !state.rexDone && !state.cddDone;
+    syncBadges();
     if (revivePromptEl) revivePromptEl.hidden = true;
     if (overPanelEl) overPanelEl.hidden = false;
     if (overlayEl) overlayEl.classList.add('show');
@@ -955,8 +964,12 @@
     state.rexFx = null;
     state.rexFxPlayed = false; // 新的一局，允许再播一次 666 特效
     state.kzFx = null;
+    state.rexDone = false;
+    state.cddDone = false;
+    state.gfdnDone = false;
     setEraseMode(false);
     if (window.DanaiwaBoard && window.DanaiwaBoard.onNewGame) window.DanaiwaBoard.onNewGame();
+    syncBadges();
     state.freeze = 0;
     state.pending = pickSpawnTier();
     state.next = pickSpawnTier(state.pending);
@@ -1422,7 +1435,7 @@
     }
     if (!kzImg) return;
     const p = f.t / f.life;
-    const y = f.y - 70 * p;
+    const y = f.y - 100 * p;
     const w = 96;
     const h = w * (kzImg.height / kzImg.width);
     ctx.save();
@@ -1640,14 +1653,15 @@
     /* 越线那一屏的两个按钮 */
     if (reviveBtn) reviveBtn.addEventListener('click', revive);
     if (giveUpBtn) giveUpBtn.addEventListener('click', settle);
-    if (eraseBtn) {
-      /* 按钮在棋盘里，阻止 pointer 事件冒泡到 stage，避免“按按钮顺带落一颗” */
-      eraseBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
-      eraseBtn.addEventListener('pointermove', (e) => e.stopPropagation());
-      eraseBtn.addEventListener('pointerup', (e) => e.stopPropagation());
-      eraseBtn.addEventListener('pointercancel', (e) => e.stopPropagation());
-      eraseBtn.addEventListener('click', () => setEraseMode(!state.eraseMode));
+    if (eraseFab) {
+      /* 棋盘里的浮动按钮：阻止 pointer 冒泡到 stage，避免“按按钮顺带落一颗” */
+      eraseFab.addEventListener('pointerdown', (e) => e.stopPropagation());
+      eraseFab.addEventListener('pointermove', (e) => e.stopPropagation());
+      eraseFab.addEventListener('pointerup', (e) => e.stopPropagation());
+      eraseFab.addEventListener('pointercancel', (e) => e.stopPropagation());
+      eraseFab.addEventListener('click', () => setEraseMode(!state.eraseMode));
     }
+    if (eraseBtn) eraseBtn.addEventListener('click', () => setEraseMode(!state.eraseMode));
 
     drawChain();
     reset();

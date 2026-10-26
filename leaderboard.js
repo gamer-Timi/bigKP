@@ -27,8 +27,7 @@
   var PREFIX = 'kp_';   // 改造版：独立前缀，不跟原版的 dnw_ 混榜
 
   const NAME_KEY = 'danaiwa.name';
-  const REX_KEY = 'danaiwa.rex.v1';   // 是否合出过两个最高级（666 徽章）
-  const CDD_KEY = 'danaiwa.cdd.v1';   // 是否合成出过 11.png（cdd 徽章）
+  /* 徽章按“本局/本次提交”算，不再读写 localStorage */
   const DEFAULT_NAME = '默认用户';   // 没填昵称就用这个
   const MUTE_MIN_GAP = 3000;        // 两次提交至少间隔 3 秒
   const MAX_SCORE = 99999999;       // 明显离谱的成绩直接不收
@@ -79,7 +78,8 @@
 
   function addScore(name, score) {
     const tag = PREFIX + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
-    const rec = { n: name, s: score, t: Date.now(), r: hasRex() ? 1 : 0, c: hasCdd() ? 1 : 0 };
+    const rec = { n: name, s: score, t: Date.now(),
+                  r: runBadges.r ? 1 : 0, c: runBadges.c ? 1 : 0, g: runBadges.g ? 1 : 0 };
     const value = JSON.stringify(rec);
     return post({ action: 'update', tag: tag, value: value }).then((res) => {
       /* 记住本局提交的这条，改名时用同一个 tag 覆盖，不新增记录 */
@@ -142,6 +142,7 @@
           score: s,
           rex: !!(rec && rec.r),
           cdd: !!(rec && rec.c),
+          gfdn: !!(rec && rec.g),
           t: stampOf(tag, rec)
         });
       }
@@ -280,6 +281,7 @@
   let submitting = false;
   let pendingScore = 0;          // 本局分数（结算/重试用）
   let lastRecord = null;         // 本局刚提交的那条 { tag, rec }
+  let runBadges = { r: false, c: false, g: false };  // 本局徽章状态
 
   function setMsg(text, kind) {
     if (!msgEl) return;
@@ -291,34 +293,32 @@
     if (submitBtn) submitBtn.hidden = !show;
   }
 
-  /* 是否已经合出过两个最高级（666 徽章） */
-  function hasRex() {
-    try { return localStorage.getItem(REX_KEY) === '1'; } catch (e) { return false; }
-  }
-
-  /* 是否已经合成出 11.png（cdd 徽章；666 优先） */
-  function hasCdd() {
-    try { return localStorage.getItem(CDD_KEY) === '1'; } catch (e) { return false; }
-  }
-
-  function markCdd() {
-    try { localStorage.setItem(CDD_KEY, '1'); } catch (e) { /* 忽略 */ }
-  }
-
   function badgeFor(kind) {
     if (!kind) return null;
     const img = document.createElement('img');
-    img.src = kind === '666' ? 'assets/666-badge.png' : 'assets/cdd-badge.png';
+    img.src = kind === '666' ? 'assets/666-badge.png'
+            : kind === 'cdd' ? 'assets/cdd-badge.png'
+            : 'assets/gfdn-badge.png';
     img.className = 'rex-badge';
-    img.alt = kind === '666' ? '666' : 'cdd';
+    img.alt = kind;
     return img;
   }
 
-  /* 名字后面的小图标：666 优先，其次 cdd */
+  /* 名字后面的小图标：666 > cdd > gfdn，全部按“本局/本次提交”算 */
   function makeBadge() {
-    if (hasRex()) return badgeFor('666');
-    if (hasCdd()) return badgeFor('cdd');
+    if (runBadges.r) return badgeFor('666');
+    if (runBadges.c) return badgeFor('cdd');
+    if (runBadges.g) return badgeFor('gfdn');
     return null;
+  }
+
+  function setRunBadges(b) {
+    runBadges = {
+      r: !!(b && b.r),
+      c: !!(b && b.c),
+      g: !!(b && b.g)
+    };
+    paintName();
   }
 
   /* 昵称在界面上出现的所有地方一起刷新 */
@@ -372,7 +372,7 @@
 
       line.appendChild(rank);
       line.appendChild(name);
-      const badge = badgeFor(row.rex ? '666' : row.cdd ? 'cdd' : null);
+      const badge = badgeFor(row.rex ? '666' : row.cdd ? 'cdd' : row.gfdn ? 'gfdn' : null);
       if (badge) line.appendChild(badge);
       line.appendChild(score);
 
@@ -547,12 +547,15 @@
     close: closeBoard,
     refresh: refreshBoard,
     onGameOver: onGameOver,
-    onNewGame: function () { lastRecord = null; },
+    onNewGame: function () {
+      lastRecord = null;
+      runBadges = { r: false, c: false, g: false };
+      paintName();
+    },
     fetchTop: fetchTop,
     submitScore: addScore,
     refreshBadge: paintName,
-    markCdd: markCdd,
-    hasCdd: hasCdd,
+    setRunBadges: setRunBadges,
     myName: myName,
     setName: function (n) { commitName(n); },
     hasName: function () { return !!loadName(); }
