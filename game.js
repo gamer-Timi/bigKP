@@ -75,7 +75,7 @@
       file: 'assets/fruits/11-halfmelon.webp', pc1: '#ccab68', pc2: '#9c8047' },
     { name: 'REX·中', r: 93.6522, c1: '#b8e986', c2: '#2a7a3a', line: 'rgba(20,90,40,.38)',
       file: 'assets/fruits/12-rex-mid.webp', pc1: '#cfe07a', pc2: '#8fae3c' },
-    { name: 'REX',   r: 112.84, c1: '#7ce878', c2: '#1c8a33', line: 'rgba(12,70,24,.4)',
+    { name: 'REX',   r: 119.04, c1: '#7ce878', c2: '#1c8a33', line: 'rgba(12,70,24,.4)',
       file: 'assets/fruits/13-watermelon.webp', pc1: '#eece9b', pc2: '#c0a271' }
   ];
 
