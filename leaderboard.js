@@ -1,8 +1,8 @@
 /* ============================================================
  *  合成大奶娃 · 排行榜
  *  基于 TinyWebDB 的 REST 接口（客户端直连，无自建后端）。
- *  成绩 tag = "kp_<时间>_<随机>"，value = {"n":昵称,"s":分数,"t":时间戳}
- *  （改造版：前缀改为 kp_，与原版 dnw_ 完全隔离，不混榜）
+ *  成绩 tag = "k_<时间>_<随机>"，value = {"n":昵称,"s":分数,"t":时间戳}
+ *  （排行榜存在自己的 TinyWebDB 账号 computor 下，和作者完全分开）
  *  榜单内容 = 最近 20 次提交；尽量多页捞取历史，显示仍只取最近 20 条。
  *  只读不写别人的数据：不做任何删除，旧成绩自然被后来的人挤出窗口。
  *  整个模块不依赖游戏内部状态，网络不通也只是排行榜不可用，不影响玩。
@@ -10,21 +10,11 @@
 (function () {
   'use strict';
 
-  /* ---- 端点与凭据（字节表存放，运行时还原） ---- */
-  var _k = [90, 60, 145, 39];
-  function _x(h) {
-    var s = '', i, c;
-    for (i = 0; i < h.length; i += 2) {
-      c = parseInt(h.substr(i, 2), 16) ^ _k[(i >> 1) & 3];
-      s += String.fromCharCode(c);
-    }
-    return s;
-  }
-  var API = _x('3248e5572906be082e55ff5e2d59f3433812f0572a55ff513f52e548' +
-               '2812e2573b5ff4083b4cf8');
-  var USER = _x('3e5dff46334bf0');
-  var SECRET = _x('6c5aa4156f0da944');
-  var PREFIX = 'k_';     // 2026-10 重置：更短前缀 + 新空榜；旧记录保留但不再显示
+  /* ---- 端点与凭据（自己的 TinyWebDB 账号） ---- */
+  var API = 'https://tinywebdb.appinventor.space/api';
+  var USER = 'computor';
+  var SECRET = '58787c39';
+  var PREFIX = 'k_';     // 自己的库，新空榜
 
   const NAME_KEY = 'danaiwa.name';
   /* 徽章按“本局/本次提交”算，不再读写 localStorage */
