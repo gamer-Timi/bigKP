@@ -3,7 +3,7 @@
  *  基于 TinyWebDB 的 REST 接口（客户端直连，无自建后端）。
  *  成绩 tag = "kp_<时间>_<随机>"，value = {"n":昵称,"s":分数,"t":时间戳}
  *  （改造版：前缀改为 kp_，与原版 dnw_ 完全隔离，不混榜）
- *  榜单内容 = 最近 20 次提交（服务端按提交时间倒序返回，取前两页即可覆盖）。
+ *  榜单内容 = 最近 50 次提交（服务端按提交时间倒序返回，取最新 1 页即可覆盖）。
  *  只读不写别人的数据：不做任何删除，旧成绩自然被后来的人挤出窗口。
  *  整个模块不依赖游戏内部状态，网络不通也只是排行榜不可用，不影响玩。
  * ============================================================ */
@@ -31,8 +31,8 @@
   const DEFAULT_NAME = '默认用户';   // 没填昵称就用这个
   const MUTE_MIN_GAP = 3000;        // 两次提交至少间隔 3 秒
   const MAX_SCORE = 99999999;       // 明显离谱的成绩直接不收
-  const SCAN_PAGES = 1;             // 最新一页 100 条已覆盖最近 20 次提交，少一次请求
-  const WINDOW = 20;                // 「最近 N 次提交」这个窗口的大小
+  const SCAN_PAGES = 1;             // 最新一页 100 条已覆盖最近 50 次提交，少一次请求
+  const WINDOW = 50;                // 「最近 N 次提交」这个窗口的大小
 
   /* ---------------------------------------------------------
    *  排行榜界面开关
@@ -88,7 +88,7 @@
     });
   }
 
-  /* 读榜：服务端按提交时间倒序返回；最新 1 页（100 条）已覆盖最近 20 次提交，
+  /* 读榜：服务端按提交时间倒序返回；最新 1 页（100 条）已覆盖最近 50 次提交，
      少一次网络往返，打开榜单更快 */
   function searchRecent() {
     return post({
@@ -279,6 +279,7 @@
   };
   let badgeTip = null;
   let badgeTipFor = null;
+  let badgeTipShownAt = 0;
 
   function setMsg(text, kind) {
     if (!msgEl) return;
@@ -326,6 +327,7 @@
     const tip = ensureBadgeTip();
     if (!tip) return;
     badgeTipFor = anchor;
+    badgeTipShownAt = Date.now();
     tip.textContent = BADGE_TIPS[kind];
     tip.hidden = false;
     positionBadgeTip(anchor);
@@ -333,27 +335,30 @@
 
   function badgeFor(kind) {
     if (!kind) return null;
+    /* 用 button 包住图片：手机上 34px 的点击区，比 16px 的图片好点得多 */
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'badge-btn';
+    btn.setAttribute('aria-label', BADGE_TIPS[kind] || kind);
     const img = document.createElement('img');
     img.src = kind === '666' ? 'assets/666-badge.png'
             : kind === 'cdd' ? 'assets/cdd-badge.png'
             : 'assets/gfdn-badge.png';
     img.className = 'rex-badge';
     img.alt = kind;
-    img.title = BADGE_TIPS[kind] || '';
-    img.tabIndex = 0;
-    img.setAttribute('role', 'button');
-    img.addEventListener('click', (e) => {
+    btn.appendChild(img);
+    btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      toggleBadgeTip(kind, img);
+      toggleBadgeTip(kind, btn);
     });
-    img.addEventListener('keydown', (e) => {
+    btn.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         e.stopPropagation();
-        toggleBadgeTip(kind, img);
+        toggleBadgeTip(kind, btn);
       }
     });
-    return img;
+    return btn;
   }
 
   /* 名字后面的小图标：666 > cdd > gfdn，全部按“本局/本次提交”算 */
@@ -566,7 +571,10 @@
       if (e.key === 'Escape') hideBadgeTip();
     });
     window.addEventListener('resize', hideBadgeTip);
-    window.addEventListener('scroll', hideBadgeTip, true);
+    window.addEventListener('scroll', () => {
+      /* 手机上点按偶尔会带出一次 scroll，250ms 内的忽略，避免刚弹出就被关 */
+      if (Date.now() - badgeTipShownAt > 250) hideBadgeTip();
+    }, true);
 
     if (submitBtn) submitBtn.addEventListener('click', retry);
 
