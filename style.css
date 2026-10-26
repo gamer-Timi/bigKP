@@ -631,6 +631,15 @@ body {
   color: var(--ink-soft);
 }
 
+.board-feedback {
+  display: inline-block;
+  margin-top: 6px;
+  color: #b4562a;
+  font-size: 11px;
+  text-decoration: underline;
+}
+.board-feedback:hover { color: #8f3f1c; }
+
 .modal-foot .btn { flex: 0 0 auto; padding: 8px 16px; }
 
 /* ---------------- 参数提示 ---------------- */
