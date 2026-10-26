@@ -272,6 +272,14 @@
   let lastRecord = null;         // 本局刚提交的那条 { tag, rec }
   let runBadges = { r: false, c: false, g: false };  // 本局徽章状态
 
+  const BADGE_TIPS = {
+    '666': '成功让REX相遇',
+    'cdd': '合成出REX但是未能让其相遇（或许是太strong了呢）',
+    'gfdn': '达到一定分数但是没能合成REX'
+  };
+  let badgeTip = null;
+  let badgeTipFor = null;
+
   function setMsg(text, kind) {
     if (!msgEl) return;
     msgEl.textContent = text || '';
@@ -282,6 +290,47 @@
     if (submitBtn) submitBtn.hidden = !show;
   }
 
+  function ensureBadgeTip() {
+    if (badgeTip) return badgeTip;
+    if (!document.body) return null;
+    badgeTip = document.createElement('div');
+    badgeTip.className = 'badge-tip';
+    badgeTip.hidden = true;
+    badgeTip.addEventListener('click', (e) => e.stopPropagation());
+    document.body.appendChild(badgeTip);
+    return badgeTip;
+  }
+
+  function positionBadgeTip(anchor) {
+    if (!badgeTip) return;
+    const r = anchor.getBoundingClientRect();
+    const tw = badgeTip.offsetWidth;
+    const th = badgeTip.offsetHeight;
+    let left = r.left + r.width / 2 - tw / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - tw - 8));
+    let top = r.bottom + 8;
+    if (top + th > window.innerHeight - 8) top = r.top - th - 8;
+    if (top < 8) top = 8;
+    badgeTip.style.left = left + 'px';
+    badgeTip.style.top = top + 'px';
+  }
+
+  function hideBadgeTip() {
+    if (badgeTip) badgeTip.hidden = true;
+    badgeTipFor = null;
+  }
+
+  function toggleBadgeTip(kind, anchor) {
+    if (!BADGE_TIPS[kind]) return;
+    if (badgeTipFor === anchor) { hideBadgeTip(); return; }
+    const tip = ensureBadgeTip();
+    if (!tip) return;
+    badgeTipFor = anchor;
+    tip.textContent = BADGE_TIPS[kind];
+    tip.hidden = false;
+    positionBadgeTip(anchor);
+  }
+
   function badgeFor(kind) {
     if (!kind) return null;
     const img = document.createElement('img');
@@ -290,6 +339,20 @@
             : 'assets/gfdn-badge.png';
     img.className = 'rex-badge';
     img.alt = kind;
+    img.title = BADGE_TIPS[kind] || '';
+    img.tabIndex = 0;
+    img.setAttribute('role', 'button');
+    img.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleBadgeTip(kind, img);
+    });
+    img.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleBadgeTip(kind, img);
+      }
+    });
     return img;
   }
 
@@ -312,6 +375,7 @@
 
   /* 昵称在界面上出现的所有地方一起刷新 */
   function paintName() {
+    hideBadgeTip();
     const n = myName();
     if (nameLabel) {
       nameLabel.textContent = n;
@@ -335,6 +399,7 @@
   }
 
   function renderBoard(rows, myScore) {
+    hideBadgeTip();
     if (!listEl) return;
     listEl.textContent = '';
     if (!rows.length) {
@@ -490,6 +555,18 @@
         if (e.target === modal) closeBoard();
       });
     }
+
+    /* 点徽章弹解释：再点同一个关，点别处关 */
+    document.addEventListener('click', (e) => {
+      if (!badgeTip || badgeTip.hidden) return;
+      if (badgeTip.contains(e.target)) return;
+      hideBadgeTip();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') hideBadgeTip();
+    });
+    window.addEventListener('resize', hideBadgeTip);
+    window.addEventListener('scroll', hideBadgeTip, true);
 
     if (submitBtn) submitBtn.addEventListener('click', retry);
 
