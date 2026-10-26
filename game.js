@@ -63,7 +63,7 @@
       file: 'assets/fruits/05-kiwi.webp',      pc1: '#c4a559', pc2: '#94793c' },
     { name: '番茄',   r: 46.4, c1: '#ff8a66', c2: '#c62f28', line: 'rgba(120,20,10,.32)',
       file: 'assets/fruits/06-tomato.webp',    pc1: '#fbd75a', pc2: '#cba63c' },
-    { name: '桃子',   r: 57.684, c1: '#ffd0d0', c2: '#ea7f93', line: 'rgba(160,60,80,.3)',
+    { name: '桃子',   r: 56.2419, c1: '#ffd0d0', c2: '#ea7f93', line: 'rgba(160,60,80,.3)',
       file: 'assets/fruits/07-peach.webp',     pc1: '#f7c45a', pc2: '#c99a3e' },
     { name: '菠萝',   r: 67.635, c1: '#ffe07a', c2: '#c88a12', line: 'rgba(130,80,0,.32)',
       file: 'assets/fruits/08-pineapple.webp', pc1: '#ffd37b', pc2: '#d1a252' },
@@ -1436,7 +1436,7 @@
     if (!kzImg) return;
     const p = f.t / f.life;
     const y = f.y - 100 * p;
-    const w = 96;
+    const w = 240;
     const h = w * (kzImg.height / kzImg.width);
     ctx.save();
     ctx.globalAlpha = Math.max(0, 1 - p);
