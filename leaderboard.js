@@ -28,6 +28,7 @@
 
   const NAME_KEY = 'danaiwa.name';
   const REX_KEY = 'danaiwa.rex.v1';   // 是否合出过两个最高级（666 徽章）
+  const CDD_KEY = 'danaiwa.cdd.v1';   // 是否合成出过 11.png（cdd 徽章）
   const DEFAULT_NAME = '默认用户';   // 没填昵称就用这个
   const MUTE_MIN_GAP = 3000;        // 两次提交至少间隔 3 秒
   const MAX_SCORE = 99999999;       // 明显离谱的成绩直接不收
@@ -78,7 +79,7 @@
 
   function addScore(name, score) {
     const tag = PREFIX + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
-    const rec = { n: name, s: score, t: Date.now(), r: hasRex() ? 1 : 0 };
+    const rec = { n: name, s: score, t: Date.now(), r: hasRex() ? 1 : 0, c: hasCdd() ? 1 : 0 };
     const value = JSON.stringify(rec);
     return post({ action: 'update', tag: tag, value: value }).then((res) => {
       /* 记住本局提交的这条，改名时用同一个 tag 覆盖，不新增记录 */
@@ -140,6 +141,7 @@
           name: String((rec && rec.n) || '匿名玩家').slice(0, 16),
           score: s,
           rex: !!(rec && rec.r),
+          cdd: !!(rec && rec.c),
           t: stampOf(tag, rec)
         });
       }
@@ -294,13 +296,29 @@
     try { return localStorage.getItem(REX_KEY) === '1'; } catch (e) { return false; }
   }
 
-  /* 名字后面的 666 小图标 */
-  function makeBadge() {
+  /* 是否已经合成出 11.png（cdd 徽章；666 优先） */
+  function hasCdd() {
+    try { return localStorage.getItem(CDD_KEY) === '1'; } catch (e) { return false; }
+  }
+
+  function markCdd() {
+    try { localStorage.setItem(CDD_KEY, '1'); } catch (e) { /* 忽略 */ }
+  }
+
+  function badgeFor(kind) {
+    if (!kind) return null;
     const img = document.createElement('img');
-    img.src = 'assets/666-badge.png';
+    img.src = kind === '666' ? 'assets/666-badge.png' : 'assets/cdd-badge.png';
     img.className = 'rex-badge';
-    img.alt = '666';
+    img.alt = kind === '666' ? '666' : 'cdd';
     return img;
+  }
+
+  /* 名字后面的小图标：666 优先，其次 cdd */
+  function makeBadge() {
+    if (hasRex()) return badgeFor('666');
+    if (hasCdd()) return badgeFor('cdd');
+    return null;
   }
 
   /* 昵称在界面上出现的所有地方一起刷新 */
@@ -308,7 +326,8 @@
     const n = myName();
     if (nameLabel) {
       nameLabel.textContent = n;
-      if (hasRex()) nameLabel.appendChild(makeBadge());
+      const badge = makeBadge();
+      if (badge) nameLabel.appendChild(badge);
     }
     if (nickInput && document.activeElement !== nickInput) nickInput.value = loadName();
   }
@@ -353,7 +372,8 @@
 
       line.appendChild(rank);
       line.appendChild(name);
-      if (row.rex) line.appendChild(makeBadge());
+      const badge = badgeFor(row.rex ? '666' : row.cdd ? 'cdd' : null);
+      if (badge) line.appendChild(badge);
       line.appendChild(score);
 
       // 高亮自己刚提交的那一条（同分且还没标记过）
@@ -531,6 +551,8 @@
     fetchTop: fetchTop,
     submitScore: addScore,
     refreshBadge: paintName,
+    markCdd: markCdd,
+    hasCdd: hasCdd,
     myName: myName,
     setName: function (n) { commitName(n); },
     hasName: function () { return !!loadName(); }

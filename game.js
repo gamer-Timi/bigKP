@@ -105,6 +105,7 @@
   const BEST_KEY = 'danaiwa.best.v1';
   const MUTE_KEY = 'danaiwa.mute.v1';
   const REX_KEY  = 'danaiwa.rex.v1';   // 是否已经合出过两个最高级（用于 666 徽章）
+  const CDD_KEY  = 'danaiwa.cdd.v1';   // 是否已经合成出 11.png（用于 cdd 徽章）
 
   /* ---------------------------------------------------------
    *  DOM
@@ -147,15 +148,41 @@
      所以默认避开；想恢复成完全随机就把它改成 false */
   const AVOID_REPEAT = true;
 
-  /* 当前该用第几张掉落表（0~5），取决于本局已合成出的最高 tier */
+  /* 本局是否合成出过某个 tier（bit 位图） */
+  function hasSynth(tier) {
+    return (state.synthMask & (1 << tier)) !== 0;
+  }
+
+  /* 记录“本局第一次合成出这个等级”，返回是不是第一次 */
+  function markSynth(tier) {
+    const bit = 1 << tier;
+    if (state.synthMask & bit) return false;
+    state.synthMask |= bit;
+    if (tier > state.maxSynthesized) state.maxSynthesized = tier;
+    return true;
+  }
+
+  /* 合成出 11.png 的永久标记（cdd 徽章；666 徽章仍然优先） */
+  function markCdd() {
+    try { localStorage.setItem(CDD_KEY, '1'); } catch (e) { /* 忽略 */ }
+    if (window.DanaiwaBoard && window.DanaiwaBoard.refreshBadge) {
+      window.DanaiwaBoard.refreshBadge();
+    }
+  }
+
+  /* 当前该用第几张掉落表（0~5）：
+     · 合出 7 → 1
+     · 合出 8 或 9 → 2
+     · 8 和 9 都合出 → 3
+     · 合出 10 或 9.5 → 4
+     · 9.5 和 10 都合出，或合出 10.5 → 5 */
   function spawnTableIndex() {
-    const m = state.maxSynthesized;
-    if (m >= 11) return 5;   // 第 10.5 级（tier 11）
-    if (m >= 10) return 4;   // 第 10 级（tier 10）
-    if (m >= 8) return 3;    // 第 9 级（tier 8）；9.5 也沿用这张
-    if (m >= 7) return 2;    // 第 8 级（tier 7）
-    if (m >= 6) return 1;    // 第 7 级（tier 6）
-    return 0;                // 还没合出第 7 级
+    if (hasSynth(11) || (hasSynth(9) && hasSynth(10))) return 5;
+    if (hasSynth(10) || hasSynth(9)) return 4;
+    if (hasSynth(7) && hasSynth(8)) return 3;
+    if (hasSynth(7) || hasSynth(8)) return 2;
+    if (hasSynth(6)) return 1;
+    return 0;
   }
 
   function rollSpawnTier() {
@@ -270,9 +297,11 @@
     flash: 0,
     revives: 0,        // 本局还剩几枚复活币（重开清零）
     reviveGiven: 0,    // 本局已经发放过几次（用来判断跨过新的 1000 分）
-    maxSynthesized: 0, // 本局已合成出的最高 tier（决定掉落表，0 起）
+    maxSynthesized: 0, // 本局已合成出的最高 tier
+    synthMask: 0,      // 本局合成出过的 tier 位图（掉落表 + 首次 3 倍）
     rexFx: null,       // 本局正在播放的 666 特效
     rexFxPlayed: false,// 本局是否已经播过 666 特效（每局第一次最高级碰撞播一次）
+    kzFx: null,        // 本局第一次合成 11.png 的 kz 特效
     eraseMode: false,  // 消除模式
     freeze: 0          // 命中定格剩余秒数
   };
@@ -609,7 +638,8 @@
       } else {
         const nt = mergeInto(tier);
         const prevTable = spawnTableIndex();
-        if (nt > state.maxSynthesized) state.maxSynthesized = nt;
+        const first = markSynth(nt);
+        const gain = MERGE_SCORE[nt] * (first ? 3 : 1);
         const nb = makeBall(mx, my, nt, (a.vx + b.vx) * 0.5, (a.vy + b.vy) * 0.5 - 60);
         /* 贴着墙合成时，新水果更大，先夹回场地内，避免瞬间穿墙 */
         nb.x = clamp(nb.x, WALL + nb.r, W - WALL - nb.r);
@@ -626,11 +656,18 @@
           drawNext();
         }
 
-        addScore(MERGE_SCORE[nt], mx, my, '+' + MERGE_SCORE[nt]);
+        addScore(gain, mx, my, '+' + gain);
         burst(mx, my, nt, 8 + nt * 2, 140 + nt * 22);
         Sound.merge(nt);
         haptic(6 + nt);
-        if (nt === MAX_TIER) state.flash = 1;
+        if (nt === MAX_TIER) {
+          state.flash = 1;
+          if (first) {
+            /* 每局第一次合成 11.png：kz 图往上飞一下，飞完 +2 复活币 */
+            state.kzFx = { x: mx, y: my, t: 0, life: 0.45, done: false };
+            markCdd();
+          }
+        }
       }
     }
 
@@ -913,9 +950,11 @@
     state.aimX = W / 2;
     state.revives = 0;        // 复活币只在本局有效，重开清零
     state.reviveGiven = 0;
-    state.maxSynthesized = 0; // 掉落表回到初始
+    state.maxSynthesized = 0;
+    state.synthMask = 0;      // 新的一局：首次 3 倍 / 掉落表重新记
     state.rexFx = null;
     state.rexFxPlayed = false; // 新的一局，允许再播一次 666 特效
+    state.kzFx = null;
     setEraseMode(false);
     if (window.DanaiwaBoard && window.DanaiwaBoard.onNewGame) window.DanaiwaBoard.onNewGame();
     state.freeze = 0;
@@ -1366,6 +1405,32 @@
     ctx.restore();
   }
 
+  /* 每局第一次合成 11.png：kz 图从合成位置向上飞、快速淡化，飞完 +2 复活币 */
+  function drawKzFx(dt) {
+    const f = state.kzFx;
+    if (!f) return;
+    f.t += dt;
+    if (f.t >= f.life) {
+      if (!f.done) {
+        f.done = true;
+        state.revives += 2;
+        paintRevives(true);
+        state.floats.push({ x: f.x, y: f.y - 62, text: '+2 复活币', life: 0.8 });
+      }
+      state.kzFx = null;
+      return;
+    }
+    if (!kzImg) return;
+    const p = f.t / f.life;
+    const y = f.y - 70 * p;
+    const w = 96;
+    const h = w * (kzImg.height / kzImg.width);
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, 1 - p);
+    ctx.drawImage(kzImg, f.x - w / 2, y - h / 2, w, h);
+    ctx.restore();
+  }
+
   function render(dt) {
     ctx.setTransform(view.scale, 0, 0, view.scale, 0, 0);
     ctx.clearRect(0, 0, W, H);
@@ -1385,6 +1450,7 @@
     }
 
     drawRexFx(dt);          // 666 特效画在最上层，按真实时间播完
+    drawKzFx(dt);           // 每局第一次合成 11.png 的 kz 特效
   }
 
   /* ---------------------------------------------------------
@@ -1493,12 +1559,19 @@
 
   let blurImg = null;          // 极模糊占位图（内联 data URL，秒到）
   let rexImg = null;           // 第一次炸最高级时的 666 图
+  let kzImg = null;            // 每局第一次合成 11.png 的 kz 图
   const blurCfg = window.FRUIT_BLUR || null;
 
   function loadRexImg() {
     const im = new Image();
     im.onload = () => { rexImg = im; };
     im.src = 'assets/666.webp';
+  }
+
+  function loadKzImg() {
+    const im = new Image();
+    im.onload = () => { kzImg = im; };
+    im.src = 'assets/kz.webp';
   }
 
   function loadBlur() {
@@ -1581,6 +1654,7 @@
     loadBlur();             // 占位图是内联的，几乎立刻可用
     loadSprites();          // 贴图异步到位，到了会自动重画预览
     loadRexImg();           // 666 特效图（第一次炸最高级时用）
+    loadKzImg();            // kz 特效图（每局第一次合成 11.png 时用）
     requestAnimationFrame((t) => { last = t; requestAnimationFrame(frame); });
   }
 
@@ -1593,7 +1667,8 @@
   /* 调试句柄（控制台可用）：__DNW__.state / .reset() / .drop() / .FRUITS / .render() */
   window.__DNW__ = { state, reset, revive, settle, gameOver, tryDrop, stepPhysics, update, FRUITS,
                      render, resizeCanvas, shapeOf, makeBall, paintRevives, addScore,
-                     spawnTableIndex, rollSpawnTier, mergeInto, SPAWN_TABLES, MAX_BONUS, REVIVE_STEP,
+                     spawnTableIndex, rollSpawnTier, mergeInto, markSynth, hasSynth,
+                     SPAWN_TABLES, MAX_BONUS, REVIVE_STEP,
                      setEraseMode, eraseAt,
                      blurReady: () => !!blurImg };
 })();
