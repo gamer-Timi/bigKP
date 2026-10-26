@@ -588,6 +588,31 @@ body {
   white-space: nowrap;
 }
 
+/* 手机上好点的点击区：用 button 包住小图标 */
+.badge-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0 2px;
+  margin-left: 2px;
+  border: 0;
+  background: none;
+  color: inherit;
+  vertical-align: middle;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.badge-btn .rex-badge {
+  height: 1.15em;
+  width: auto;
+  margin-left: 0;
+  display: block;
+  pointer-events: none;
+}
+
 /* 合出过两个最高级的存档：名字后面的 666 小图标 */
 .rex-badge {
   display: inline-block;
