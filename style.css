@@ -596,7 +596,24 @@ body {
   margin-left: 4px;
   vertical-align: -0.18em;
   align-self: center;
+  cursor: pointer;
 }
+
+.badge-tip {
+  position: fixed;
+  z-index: 9999;
+  max-width: 260px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fffdf8;
+  color: #4b3324;
+  border: 1px solid rgba(140, 96, 56, .25);
+  box-shadow: 0 8px 24px rgba(80, 50, 20, .18);
+  font-size: 12px;
+  line-height: 1.55;
+  text-align: left;
+}
+.badge-tip[hidden] { display: none; }
 
 .board-score {
   flex: 0 0 auto;
