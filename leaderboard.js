@@ -3,7 +3,7 @@
  *  基于 TinyWebDB 的 REST 接口（客户端直连，无自建后端）。
  *  成绩 tag = "kp_<时间>_<随机>"，value = {"n":昵称,"s":分数,"t":时间戳}
  *  （改造版：前缀改为 kp_，与原版 dnw_ 完全隔离，不混榜）
- *  榜单内容 = 最近 50 次提交（服务端按提交时间倒序返回，取最新 1 页即可覆盖）。
+ *  榜单内容 = 最近 20 次提交；尽量多页捞取历史，显示仍只取最近 20 条。
  *  只读不写别人的数据：不做任何删除，旧成绩自然被后来的人挤出窗口。
  *  整个模块不依赖游戏内部状态，网络不通也只是排行榜不可用，不影响玩。
  * ============================================================ */
@@ -31,8 +31,8 @@
   const DEFAULT_NAME = '默认用户';   // 没填昵称就用这个
   const MUTE_MIN_GAP = 3000;        // 两次提交至少间隔 3 秒
   const MAX_SCORE = 99999999;       // 明显离谱的成绩直接不收
-  const SCAN_PAGES = 1;             // 最新一页 100 条已覆盖最近 50 次提交，少一次请求
-  const WINDOW = 50;                // 「最近 N 次提交」这个窗口的大小
+  const SCAN_PAGES = 5;             // 最多扫 5 页（500 条），尽量多捞；显示仍只取最近 20 条
+  const WINDOW = 20;                // 「最近 N 次提交」这个窗口的大小
 
   /* ---------------------------------------------------------
    *  排行榜界面开关
@@ -88,16 +88,24 @@
     });
   }
 
-  /* 读榜：服务端按提交时间倒序返回；最新 1 页（100 条）已覆盖最近 50 次提交，
-     少一次网络往返，打开榜单更快 */
+  /* 读榜：服务端按提交时间倒序返回；并行扫最多 5 页，尽量多捞历史，
+     显示仍只取最近 WINDOW=20 条 */
   function searchRecent() {
-    return post({
-      action: 'search', no: '1', count: '100',
-      tag: PREFIX, type: 'both'
-    }).then((obj) => {
+    const jobs = [];
+    for (let i = 0; i < SCAN_PAGES; i++) {
+      jobs.push(post({
+        action: 'search', no: String(1 + i * 100), count: '100',
+        tag: PREFIX, type: 'both'
+      }).catch(() => null));
+    }
+    return Promise.all(jobs).then((pages) => {
       const out = {};
-      for (const k in obj) {
-        if (k.indexOf(PREFIX) === 0 && typeof obj[k] === 'string') out[k] = obj[k];
+      for (let p = 0; p < pages.length; p++) {
+        const obj = pages[p];
+        if (!obj) continue;
+        for (const k in obj) {
+          if (k.indexOf(PREFIX) === 0 && typeof obj[k] === 'string') out[k] = obj[k];
+        }
       }
       return out;
     });
