@@ -3,7 +3,7 @@
  *  基于 TinyWebDB 的 REST 接口（客户端直连，无自建后端）。
  *  成绩 tag = "k_<时间>_<随机>"，value = {"n":昵称,"s":分数,"t":时间戳}
  *  （排行榜存在自己的 TinyWebDB 账号 computor 下，和作者完全分开）
- *  榜单内容 = 最近 20 次提交；尽量多页捞取历史，显示仍只取最近 20 条。
+ *  榜单内容 = 最新 60 次提交里的前 50 名。
  *  只读不写别人的数据：不做任何删除，旧成绩自然被后来的人挤出窗口。
  *  整个模块不依赖游戏内部状态，网络不通也只是排行榜不可用，不影响玩。
  * ============================================================ */
@@ -21,8 +21,9 @@
   const DEFAULT_NAME = '默认用户';   // 没填昵称就用这个
   const MUTE_MIN_GAP = 3000;        // 两次提交至少间隔 3 秒
   const MAX_SCORE = 99999999;       // 明显离谱的成绩直接不收
-  const SCAN_PAGES = 5;             // 最多扫 5 页（500 条），尽量多捞；显示仍只取最近 20 条
-  const WINDOW = 20;                // 「最近 N 次提交」这个窗口的大小
+  const SCAN_PAGES = 5;             // 最多扫 5 页（500 条），尽量多捞
+  const SAMPLE = 60;                // 先取最新 60 次提交
+  const WINDOW = 50;                // 再按分数取前 50 名展示
 
   /* ---------------------------------------------------------
    *  排行榜界面开关
@@ -79,7 +80,7 @@
   }
 
   /* 读榜：服务端按提交时间倒序返回；并行扫最多 5 页，尽量多捞历史，
-     显示仍只取最近 WINDOW=20 条 */
+     先取最新 SAMPLE=60 条，再按分数显示前 WINDOW=50 名 */
   function searchRecent() {
     const jobs = [];
     for (let i = 0; i < SCAN_PAGES; i++) {
@@ -112,7 +113,7 @@
     return isFinite(s) ? s : 0;
   }
 
-  /* 榜单 = 最近 WINDOW 次提交，再按分数排个序给大家看 */
+  /* 榜单 = 最新 60 次提交，再按分数取前 50 名 */
   function fetchTop() {
     return searchRecent().then((obj) => {
       const all = [];
@@ -134,13 +135,13 @@
         });
       }
 
-      /* 先按提交时间取最近的 WINDOW 条 */
+      /* 先按提交时间取最新的 SAMPLE 条 */
       all.sort((a, b) => (b.t - a.t) || (b.tag > a.tag ? 1 : -1));
-      const fresh = all.slice(0, WINDOW);
+      const recent = all.slice(0, SAMPLE);
 
-      /* 再在这个窗口里按分数排名 */
-      fresh.sort((a, b) => (b.score - a.score) || (b.t - a.t));
-      return fresh;
+      /* 再按分数取前 WINDOW 名 */
+      recent.sort((a, b) => (b.score - a.score) || (b.t - a.t));
+      return recent.slice(0, WINDOW);
     });
   }
 
@@ -508,7 +509,7 @@
     pushScore(myName(), pendingScore, true);
   }
 
-  /* 打完一局：直接结算上榜（榜单是最近 WINDOW 次提交，谁都能进） */
+  /* 打完一局：直接结算上榜（榜单取最新 60 次提交里的前 50 名） */
   function onGameOver(score) {
     if (!submitBox) return;
     pendingScore = Number(score) || 0;
